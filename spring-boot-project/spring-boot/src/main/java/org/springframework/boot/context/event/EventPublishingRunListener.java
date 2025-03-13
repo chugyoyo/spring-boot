@@ -95,6 +95,9 @@ public class EventPublishingRunListener implements SpringApplicationRunListener,
 
 	@Override
 	public void started(ConfigurableApplicationContext context) {
+		// 发布事件？
+		//   我看到很多都用这个来消费  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+		//    @Async
 		context.publishEvent(new ApplicationStartedEvent(this.application, this.args, context));
 	}
 

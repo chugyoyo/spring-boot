@@ -34,11 +34,13 @@ import org.springframework.core.annotation.AliasFor;
 import org.springframework.data.repository.Repository;
 
 /**
- * Indicates a {@link Configuration configuration} class that declares one or more
- * {@link Bean @Bean} methods and also triggers {@link EnableAutoConfiguration
- * auto-configuration} and {@link ComponentScan component scanning}. This is a convenience
- * annotation that is equivalent to declaring {@code @Configuration},
- * {@code @EnableAutoConfiguration} and {@code @ComponentScan}.
+ * 标识一个配置类（{@link Configuration}），该类声明一个或多个 {@link Bean @Bean} 方法，
+ * 同时触发以下行为：
+ * 1. {@link EnableAutoConfiguration 自动配置}
+ * 2. {@link ComponentScan 组件扫描}
+ *
+ * <p>这是一个组合注解，等价于同时声明以下三个注解：
+ * {@code @Configuration}、{@code @EnableAutoConfiguration} 和 {@code @ComponentScan}。
  *
  * @author Phillip Webb
  * @author Stephane Nicoll
@@ -51,82 +53,73 @@ import org.springframework.data.repository.Repository;
 @Inherited
 @SpringBootConfiguration
 @EnableAutoConfiguration
-@ComponentScan(excludeFilters = { @Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
-		@Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class) })
+@ComponentScan(excludeFilters = {
+		@Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),  // 排除特定类型过滤器
+		@Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class) // 排除自动配置类过滤器
+})
 public @interface SpringBootApplication {
 
 	/**
-	 * Exclude specific auto-configuration classes such that they will never be applied.
-	 * @return the classes to exclude
+	 * 排除特定的自动配置类（这些类将永远不会被应用）
+	 * @return 要排除的类数组
 	 */
 	@AliasFor(annotation = EnableAutoConfiguration.class)
 	Class<?>[] exclude() default {};
 
 	/**
-	 * Exclude specific auto-configuration class names such that they will never be
-	 * applied.
-	 * @return the class names to exclude
+	 * 排除特定的自动配置类名（这些类将永远不会被应用）
+	 * @return 要排除的类全限定名数组
 	 * @since 1.3.0
 	 */
 	@AliasFor(annotation = EnableAutoConfiguration.class)
 	String[] excludeName() default {};
 
 	/**
-	 * Base packages to scan for annotated components. Use {@link #scanBasePackageClasses}
-	 * for a type-safe alternative to String-based package names.
-	 * <p>
-	 * <strong>Note:</strong> this setting is an alias for
-	 * {@link ComponentScan @ComponentScan} only. It has no effect on {@code @Entity}
-	 * scanning or Spring Data {@link Repository} scanning. For those you should add
-	 * {@link org.springframework.boot.autoconfigure.domain.EntityScan @EntityScan} and
-	 * {@code @Enable...Repositories} annotations.
-	 * @return base packages to scan
+	 * 指定组件扫描的基础包路径（基于字符串）。
+	 *
+	 * <p>注意：此设置仅作用于 {@link ComponentScan}，对以下扫描无影响：
+	 * - JPA {@code @Entity} 实体扫描
+	 * - Spring Data {@link Repository} 仓库扫描
+	 * 如需配置这些扫描，需分别使用：
+	 * {@link org.springframework.boot.autoconfigure.domain.EntityScan @EntityScan} 和
+	 * {@code @Enable...Repositories} 注解。
+	 *
+	 * @return 要扫描的基础包路径数组
 	 * @since 1.3.0
 	 */
 	@AliasFor(annotation = ComponentScan.class, attribute = "basePackages")
 	String[] scanBasePackages() default {};
 
 	/**
-	 * Type-safe alternative to {@link #scanBasePackages} for specifying the packages to
-	 * scan for annotated components. The package of each class specified will be scanned.
-	 * <p>
-	 * Consider creating a special no-op marker class or interface in each package that
-	 * serves no purpose other than being referenced by this attribute.
-	 * <p>
-	 * <strong>Note:</strong> this setting is an alias for
-	 * {@link ComponentScan @ComponentScan} only. It has no effect on {@code @Entity}
-	 * scanning or Spring Data {@link Repository} scanning. For those you should add
-	 * {@link org.springframework.boot.autoconfigure.domain.EntityScan @EntityScan} and
-	 * {@code @Enable...Repositories} annotations.
-	 * @return base packages to scan
+	 * 指定组件扫描的基础包路径（基于类，类型安全）。
+	 *
+	 * <p>建议在每个包中创建一个无功能的标记类或接口，专门用于此处引用。
+	 *
+	 * <p>同 {@link #scanBasePackages}，此设置仅作用于 {@link ComponentScan}，
+	 * 不影响 JPA 实体或 Spring Data 仓库的扫描。
+	 *
+	 * @return 要扫描的基础包中的标记类数组
 	 * @since 1.3.0
 	 */
 	@AliasFor(annotation = ComponentScan.class, attribute = "basePackageClasses")
 	Class<?>[] scanBasePackageClasses() default {};
 
 	/**
-	 * Specify whether {@link Bean @Bean} methods should get proxied in order to enforce
-	 * bean lifecycle behavior, e.g. to return shared singleton bean instances even in
-	 * case of direct {@code @Bean} method calls in user code. This feature requires
-	 * method interception, implemented through a runtime-generated CGLIB subclass which
-	 * comes with limitations such as the configuration class and its methods not being
-	 * allowed to declare {@code final}.
-	 * <p>
-	 * The default is {@code true}, allowing for 'inter-bean references' within the
-	 * configuration class as well as for external calls to this configuration's
-	 * {@code @Bean} methods, e.g. from another configuration class. If this is not needed
-	 * since each of this particular configuration's {@code @Bean} methods is
-	 * self-contained and designed as a plain factory method for container use, switch
-	 * this flag to {@code false} in order to avoid CGLIB subclass processing.
-	 * <p>
-	 * Turning off bean method interception effectively processes {@code @Bean} methods
-	 * individually like when declared on non-{@code @Configuration} classes, a.k.a.
-	 * "@Bean Lite Mode" (see {@link Bean @Bean's javadoc}). It is therefore behaviorally
-	 * equivalent to removing the {@code @Configuration} stereotype.
+	 * 指定是否代理 {@link Bean @Bean} 方法以强制执行 Bean 生命周期行为。
+	 *
+	 * <p>默认值为 {@code true}，启用以下特性：
+	 * - 在配置类内部支持 Bean 间的引用
+	 * - 外部调用此配置类的 {@code @Bean} 方法时返回共享的单例 Bean 实例
+	 *
+	 * <p>若不需要上述特性（例如每个 {@code @Bean} 方法都是独立的自包含工厂方法），
+	 * 可设为 {@code false} 以禁用 CGLIB 子类生成，此时行为等效于非 {@code @Configuration} 类
+	 * 的 "@Bean Lite 模式"。
+	 *
+	 * <p>禁用后，配置类及其方法允许声明 {@code final}。
+	 *
 	 * @since 2.2
-	 * @return whether to proxy {@code @Bean} methods
+	 * @return 是否代理 {@code @Bean} 方法
 	 */
 	@AliasFor(annotation = Configuration.class)
 	boolean proxyBeanMethods() default true;
-
 }
