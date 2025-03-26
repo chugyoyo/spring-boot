@@ -371,6 +371,7 @@ public class SpringApplication {
 		}
 		catch (Throwable ex) {
 			// **关键改动**：处理启动失败，通知异常报告器并发布失败事件
+			logger.info("org.springframework.boot.SpringApplication.run(java.lang.String...) run ex", ex);
 			handleRunFailure(context, ex, exceptionReporters, listeners);
 			throw new IllegalStateException(ex);
 		}

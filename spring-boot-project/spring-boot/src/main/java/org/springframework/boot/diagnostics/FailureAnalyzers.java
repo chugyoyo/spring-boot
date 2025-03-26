@@ -105,6 +105,15 @@ final class FailureAnalyzers implements SpringBootExceptionReporter {
 		return report(analysis, this.classLoader);
 	}
 
+	/**
+	 * 将异常用多个分析器分析出原因（责任链）
+	 * 如果有一个分析器分析出根本原因，则直接返回该根本原因，最后控制台打印异常分析
+	 *
+	 *
+	 * @param failure
+	 * @param analyzers
+	 * @return
+	 */
 	private FailureAnalysis analyze(Throwable failure, List<FailureAnalyzer> analyzers) {
 		for (FailureAnalyzer analyzer : analyzers) {
 			try {
