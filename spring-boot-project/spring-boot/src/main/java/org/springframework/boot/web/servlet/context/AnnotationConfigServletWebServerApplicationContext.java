@@ -29,6 +29,8 @@ import org.springframework.context.annotation.AnnotationConfigUtils;
 import org.springframework.context.annotation.AnnotationScopeMetadataResolver;
 import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
 import org.springframework.context.annotation.ScopeMetadataResolver;
+import org.springframework.context.support.AbstractApplicationContext;
+import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
@@ -70,6 +72,11 @@ public class AnnotationConfigServletWebServerApplicationContext extends ServletW
 	 * {@linkplain #refresh refreshed}.
 	 */
 	public AnnotationConfigServletWebServerApplicationContext() {
+		/**
+		 * 这里还会调用父类的父类的父类的构造函数，构造存放和生产bean实例的工厂 {@link DefaultListableBeanFactory}
+		 * {@link GenericApplicationContext#GenericApplicationContext()}
+		 */
+		// 用来解析@Component、@ComponentScan等注解的 配置类的后置处理器 ConfigurationClassPostProcessor？？？？
 		this.reader = new AnnotatedBeanDefinitionReader(this);
 		this.scanner = new ClassPathBeanDefinitionScanner(this);
 	}

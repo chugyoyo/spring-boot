@@ -543,7 +543,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
-				onRefresh();
+				onRefresh(); //
 
 				// Check for listener beans and register them.
 				registerListeners();

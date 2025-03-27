@@ -134,7 +134,7 @@ public class AnnotatedBeanDefinitionReader {
 	 */
 	public void register(Class<?>... componentClasses) {
 		for (Class<?> componentClass : componentClasses) {
-			registerBean(componentClass);
+			registerBean(componentClass); // 注册 class org.springframework.boot.launchscript.LaunchScriptTestApplication
 		}
 	}
 

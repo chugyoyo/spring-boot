@@ -61,14 +61,14 @@ public enum WebApplicationType {
 	static WebApplicationType deduceFromClasspath() {
 		if (ClassUtils.isPresent(WEBFLUX_INDICATOR_CLASS, null) && !ClassUtils.isPresent(WEBMVC_INDICATOR_CLASS, null)
 				&& !ClassUtils.isPresent(JERSEY_INDICATOR_CLASS, null)) {
-			return WebApplicationType.REACTIVE;
+			return WebApplicationType.REACTIVE; // 响应式非阻塞服务，例如 spring-webflux
 		}
 		for (String className : SERVLET_INDICATOR_CLASSES) {
 			if (!ClassUtils.isPresent(className, null)) {
-				return WebApplicationType.NONE;
+				return WebApplicationType.NONE; // 什么都不是
 			}
 		}
-		return WebApplicationType.SERVLET;
+		return WebApplicationType.SERVLET; // 传统 servlet，例如 tomcat
 	}
 
 	static WebApplicationType deduceFromApplicationContext(Class<?> applicationContextClass) {

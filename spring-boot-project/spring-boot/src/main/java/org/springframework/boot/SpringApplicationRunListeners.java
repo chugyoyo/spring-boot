@@ -49,6 +49,7 @@ class SpringApplicationRunListeners {
 	}
 
 	void environmentPrepared(ConfigurableEnvironment environment) {
+		// 这里数组只有一个 EventPublishingRunListener 的监听器
 		for (SpringApplicationRunListener listener : this.listeners) {
 			listener.environmentPrepared(environment);
 		}
