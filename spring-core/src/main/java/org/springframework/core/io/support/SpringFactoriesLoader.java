@@ -123,27 +123,30 @@ public final class SpringFactoriesLoader {
 	}
 
 	private static Map<String, List<String>> loadSpringFactories(@Nullable ClassLoader classLoader) {
-		MultiValueMap<String, String> result = cache.get(classLoader);
+		MultiValueMap<String, String> result = cache.get(classLoader); // 		// 同个类加载器加载的 spring.factories 不需要再次进行获取
 		if (result != null) {
 			return result;
 		}
 
-		try {
+		try {//			// 这里会将项目的所有 META-INF/spring.factories 的路径加载进来
 			Enumeration<URL> urls = (classLoader != null ?
-					classLoader.getResources(FACTORIES_RESOURCE_LOCATION) :
+					classLoader.getResources(FACTORIES_RESOURCE_LOCATION) ://					// TODO 至于为什么能够拿到很多其他模块的加载路径，这个有待探究
 					ClassLoader.getSystemResources(FACTORIES_RESOURCE_LOCATION));
 			result = new LinkedMultiValueMap<>();
-			while (urls.hasMoreElements()) {
+			while (urls.hasMoreElements()) { 				// 单个 META-INF/spring.factories 文件的处理
 				URL url = urls.nextElement();
 				UrlResource resource = new UrlResource(url);
 				Properties properties = PropertiesLoaderUtils.loadProperties(resource);
 				for (Map.Entry<?, ?> entry : properties.entrySet()) {
+					// key 是 spring.factories 的key
+					// 由于是 MultiValueMap 多值map，value 是 spring.factories 的多个value（用英文逗号隔开的）
 					String factoryTypeName = ((String) entry.getKey()).trim();
 					for (String factoryImplementationName : StringUtils.commaDelimitedListToStringArray((String) entry.getValue())) {
 						result.add(factoryTypeName, factoryImplementationName.trim());
 					}
 				}
 			}
+			// 用并发map缓存起来，提高效率
 			cache.put(classLoader, result);
 			return result;
 		}

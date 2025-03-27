@@ -513,11 +513,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		return this.applicationListeners;
 	}
 
-	@Override
+	@Override // 自动装配bean的核心逻辑，共分为12个小步骤
 	public void refresh() throws BeansException, IllegalStateException {
 		synchronized (this.startupShutdownMonitor) {
-			// Prepare this context for refreshing.
-			prepareRefresh();
+			// Prepare this context for refreshing.// 在已有的环境基础上，准备servlet相关的Environment，其他的在“环境准备阶段”已经完成
+			prepareRefresh(); /**{@link org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext#prepareRefresh()}**/
 
 			// Tell the subclass to refresh the internal bean factory.
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
@@ -530,7 +530,6 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
-				// invokeBeanFactoryPostProcessors 的核心职责是 触发所有已注册的 BeanFactoryPostProcessor 和 BeanDefinitionRegistryPostProcessor 的执行。这些后置处理器允许开发者在 Bean 实例化之前对 Bean 的定义（BeanDefinition）进行修改或扩展。
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
@@ -581,7 +580,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 	/**
 	 * Prepare this context for refreshing, setting its startup date and
-	 * active flag as well as performing any initialization of property sources.
+	 * active flag as well as performing any initialization of property sources.  {@link org.springframework.web.context.support.GenericWebApplicationContext#initPropertySources()}
 	 */
 	protected void prepareRefresh() {
 		// Switch to active.
@@ -598,8 +597,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			}
 		}
 
-		// Initialize any placeholder property sources in the context environment.
-		initPropertySources();
+		// Initialize any placeholder property sources in the context environment. 在上下文环境中初始化任何占位符属性源。
+		initPropertySources();/**{@link org.springframework.web.context.support.GenericWebApplicationContext#initPropertySources()}**/
 
 		// Validate that all properties marked as required are resolvable:
 		// see ConfigurablePropertyResolver#setRequiredProperties

@@ -35,6 +35,9 @@ class SpringApplicationRunListeners {
 
 	private final Log log;
 
+	/**
+	 * springboot启动时，这里一般只存一个 EventPublishingRunListener
+	 */
 	private final List<SpringApplicationRunListener> listeners;
 
 	SpringApplicationRunListeners(Log log, Collection<? extends SpringApplicationRunListener> listeners) {
@@ -48,6 +51,10 @@ class SpringApplicationRunListeners {
 		}
 	}
 
+	/**
+	 * 环境准备
+	 * @param environment 一般为 StandardServletEnvironment
+	 */
 	void environmentPrepared(ConfigurableEnvironment environment) {
 		// 这里数组只有一个 EventPublishingRunListener 的监听器
 		for (SpringApplicationRunListener listener : this.listeners) {

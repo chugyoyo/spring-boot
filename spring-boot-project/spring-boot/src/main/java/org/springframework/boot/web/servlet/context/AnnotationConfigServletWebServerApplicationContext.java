@@ -73,10 +73,10 @@ public class AnnotationConfigServletWebServerApplicationContext extends ServletW
 	 */
 	public AnnotationConfigServletWebServerApplicationContext() {
 		/**
-		 * 这里还会调用父类的父类的父类的构造函数，构造存放和生产bean实例的工厂 {@link DefaultListableBeanFactory}
-		 * {@link GenericApplicationContext#GenericApplicationContext()}
+		 * 其继承自有 refresh 方法的 {@link AbstractApplicationContext#refresh()}
+		 * 这里还会调用父类的父类的父类的构造函数 {@link GenericApplicationContext#GenericApplicationContext()} 创建bean工厂
 		 */
-		// 用来解析@Component、@ComponentScan等注解的 配置类的后置处理器 ConfigurationClassPostProcessor？？？？
+		// ？？？？用来解析@Component、@ComponentScan等注解的 配置类的后置处理器 ConfigurationClassPostProcessor？？？？
 		this.reader = new AnnotatedBeanDefinitionReader(this);
 		this.scanner = new ClassPathBeanDefinitionScanner(this);
 	}

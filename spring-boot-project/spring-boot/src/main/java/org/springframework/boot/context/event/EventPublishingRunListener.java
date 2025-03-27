@@ -45,6 +45,11 @@ import org.springframework.util.ErrorHandler;
  */
 public class EventPublishingRunListener implements SpringApplicationRunListener, Ordered {
 
+	/**
+	 * 这里是对springboot启动类的引用，体现了设计模式中的委派模式，将启动类的引用保存下来，以便后续使用
+     * 委派模式：将任务委派给其他对象来处理，从而实现功能的解耦和复用
+     * 委派模式的核心是：将任务委派给其他对象来处理，
+	 */
 	private final SpringApplication application;
 
 	private final String[] args;
@@ -91,6 +96,7 @@ public class EventPublishingRunListener implements SpringApplicationRunListener,
 			}
 			context.addApplicationListener(listener);
 		}
+		// 多播发送事件的机制？
 		this.initialMulticaster.multicastEvent(new ApplicationPreparedEvent(this.application, this.args, context));
 	}
 

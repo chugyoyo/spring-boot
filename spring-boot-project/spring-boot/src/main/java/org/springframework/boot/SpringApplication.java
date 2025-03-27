@@ -226,6 +226,7 @@ public class SpringApplication {
 
 	private boolean registerShutdownHook = true;
 
+	// 初始化器，标准启动有7个
 	private List<ApplicationContextInitializer<?>> initializers;
 
 	private List<ApplicationListener<?>> listeners;
@@ -289,10 +290,10 @@ public class SpringApplication {
 		 * 会加载所有 META-INF/spring-factories 里的注册初始化（这里好像没有）、上下文初始化（7个）、监听器（8个） 配置
 		 * 可自定义，放到 spring-factories 即可一并加载
 		 */
-		// 5. 加载并设置 ApplicationContextInitializer（应用上下文初始化器）
+		// 5. 加载并设置 ApplicationContextInitializer（应用上下文初始化器）上下文初始化（7个）
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
 
-		// 6. 加载并设置 ApplicationListener（应用事件监听器）
+		// 6. 加载并设置 ApplicationListener（应用事件监听器） 监听器（8个）
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
 
 		// 7. 推断主应用类（包含 main 方法的类）通过运行栈进行判断
@@ -371,9 +372,17 @@ public class SpringApplication {
 					new Class[] { ConfigurableApplicationContext.class }, context);
 
 			// 准备应用上下文：注册Bean定义、初始化器、绑定环境等
+			// 对容器中的部分属性进行初始化
 			prepareContext(context, environment, listeners, applicationArguments, printedBanner);
 
+			/**
+			 * -- 填充容器 --
+			 * 在以下步骤，会生产自身或用户提供的所有bean，并且放入到bean容器
+			 * 这个过程也叫：自动装配！
+			 * 有12个步骤，有生命周期管理，同时会启动web服务器
+			 */
 			// **核心步骤**：刷新应用上下文（加载Bean、初始化容器、启动Web服务器）
+			// 这里是 交给 springframework 的 org.springframework.context.support.AbstractApplicationContext 处理
 			refreshContext(context);
 
 			// 后置处理：容器刷新后的扩展逻辑（如内置WebServer的最终启动）
@@ -390,6 +399,7 @@ public class SpringApplication {
 			listeners.started(context);
 
 			// 执行所有ApplicationRunner和CommandLineRunner的实现类
+			// 用户自定义的 runner 被执行？？todo 如何创建自定义的runner？
 			callRunners(context, applicationArguments);
 
 		}
@@ -489,29 +499,32 @@ public class SpringApplication {
 		// 3. 执行ApplicationContextInitializer初始化器
 		applyInitializers(context);
 
-		// 4. 触发上下文准备就绪事件（ContextPrepared）
+		// 4. 触发上下文准备就绪事件（ContextPrepared）发布“容器准备完成”事件给监听器，这里是设计模式中观察者模式
 		listeners.contextPrepared(context);
 
 		// 5. 记录启动信息
 		if (this.logStartupInfo) {
-			logStartupInfo(context.getParent() == null); // 打印应用启动头信息
-			logStartupProfileInfo(context);              // 打印激活的profile信息
+			logStartupInfo(context.getParent() == null); // 打印应用启动头信息，包括启动类、机器名称、PID、路径等
+			logStartupProfileInfo(context);              // 打印激活的profile信息，这里为什么取不到 active profile？
 		}
 
-		// 6. 注册关键单例Bean
+		// 6. 为bean工厂注册关键单例Bean
 		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+		// 注册启动参数单例
 		beanFactory.registerSingleton("springApplicationArguments", applicationArguments); // 启动参数Bean
+		// 注册banner单例
 		if (printedBanner != null) {
 			beanFactory.registerSingleton("springBootBanner", printedBanner); // Banner信息Bean
 		}
 
-		// 7. 配置BeanFactory属性
+		// 7. 配置bean引用策略
 		if (beanFactory instanceof DefaultListableBeanFactory) {
+			// 设置是否允许bean的覆盖，这里一般是false
 			((DefaultListableBeanFactory) beanFactory)
 					.setAllowBeanDefinitionOverriding(this.allowBeanDefinitionOverriding); // 设置是否允许Bean定义覆盖
 		}
 
-		// 8. 延迟初始化配置
+		// 8. 延迟初始化配置，添加懒加载策略
 		if (this.lazyInitialization) {
 			context.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor()); // 添加延迟初始化处理器
 		}
@@ -519,10 +532,15 @@ public class SpringApplication {
 		// 9. 加载主配置源
 		Set<Object> sources = getAllSources(); // 获取所有配置源（主类+其他源）
 		Assert.notEmpty(sources, "Sources must not be empty"); // 必须存在配置源
+		/**
+		 * 核心加载流程，将包括启动类在内的资源，加载到Bean定义池 BeanDefinitionMap中，以便后续根据bean定义创建bean对象
+		 * */
 		load(context, sources.toArray(new Object[0])); // 核心加载逻辑（注册Bean定义）里面有 loadBeanDestination
 
-		// 10. 触发上下文加载完成事件（ContextLoaded）
+		// 10. 触发上下文加载完成事件（ContextLoaded）发布资源加载完成事件
 		listeners.contextLoaded(context);
+
+		// 到此：容器创建完成
 	}
 
 	private void refreshContext(ConfigurableApplicationContext context) {
@@ -534,6 +552,7 @@ public class SpringApplication {
 				// Not allowed in some environments.
 			}
 		}
+		// 核心装配逻辑
 		refresh(context);
 	}
 
@@ -557,6 +576,19 @@ public class SpringApplication {
 	private <T> Collection<T> getSpringFactoriesInstances(Class<T> type, Class<?>[] parameterTypes, Object... args) {
 		ClassLoader classLoader = getClassLoader();
 		// Use names and ensure unique to protect against duplicates
+		// "org.springframework.boot.autoconfigure.EnableAutoConfiguration" -> {LinkedList@1162}  size = 125
+		//"org.springframework.boot.diagnostics.FailureAnalyzer" -> {LinkedList@1164}  size = 19
+		//"org.springframework.boot.env.EnvironmentPostProcessor" -> {LinkedList@1166}  size = 4
+		//"org.springframework.boot.SpringApplicationRunListener" -> {LinkedList@1168}  size = 1
+		//"org.springframework.context.ApplicationContextInitializer" -> {LinkedList@1170}  size = 7
+		//"org.springframework.boot.env.PropertySourceLoader" -> {LinkedList@1172}  size = 2
+		//"org.springframework.context.ApplicationListener" -> {LinkedList@1174}  size = 11
+		//"org.springframework.boot.diagnostics.FailureAnalysisReporter" -> {LinkedList@1176}  size = 1
+		//"org.springframework.boot.SpringBootExceptionReporter" -> {LinkedList@1178}  size = 1
+		//"org.springframework.boot.autoconfigure.AutoConfigurationImportFilter" -> {LinkedList@1180}  size = 3
+		//"org.springframework.boot.autoconfigure.AutoConfigurationImportListener" -> {LinkedList@1182}  size = 1
+		//"org.springframework.boot.autoconfigure.template.TemplateAvailabilityProvider" -> {LinkedList@1184}  size = 5
+		//"org.springframework.beans.BeanInfoFactory" -> {LinkedList@1186}  size = 1
 		Set<String> names = new LinkedHashSet<>(SpringFactoriesLoader.loadFactoryNames(type, classLoader));
 		List<T> instances = createSpringFactoriesInstances(type, parameterTypes, classLoader, args, names);
 		AnnotationAwareOrderComparator.sort(instances);
@@ -707,9 +739,8 @@ public class SpringApplication {
 				switch (this.webApplicationType) {
 				case SERVLET:
 					/**
-					 * 上下文容器是：AnnotationConfigServletWebServerApplicationContext，其继承自有 refresh 方法的 {@link AbstractApplicationContext#refresh()}
-					 * 这里会调用无参构造函数，初始化 reader 和 scanner
-					 * {@link AnnotationConfigServletWebServerApplicationContext#AnnotationConfigServletWebServerApplicationContext()}
+					 * 上下文容器是：AnnotationConfigServletWebServerApplicationContext，这个类继承很多层context，各个都是核心，各有千秋
+					 * 这里反射会调用无参构造函数，初始化 reader 和 scanner{@link AnnotationConfigServletWebServerApplicationContext#AnnotationConfigServletWebServerApplicationContext()}
  					 */
 					contextClass = Class.forName(DEFAULT_SERVLET_WEB_CONTEXT_CLASS);
 					break;
@@ -734,10 +765,12 @@ public class SpringApplication {
 	 * @param context the application context
 	 */
 	protected void postProcessApplicationContext(ConfigurableApplicationContext context) {
+		// 生成bean名称生成器
 		if (this.beanNameGenerator != null) {
 			context.getBeanFactory().registerSingleton(AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR,
 					this.beanNameGenerator);
 		}
+		// 如果启动类全局有资源加载器，那么注册到context中的不同层级的加载器中
 		if (this.resourceLoader != null) {
 			if (context instanceof GenericApplicationContext) {
 				((GenericApplicationContext) context).setResourceLoader(this.resourceLoader);
@@ -746,6 +779,7 @@ public class SpringApplication {
 				((DefaultResourceLoader) context).setClassLoader(this.resourceLoader.getClassLoader());
 			}
 		}
+        // 添加默认的转换服务，用于类型转换，如字符串转数字等
 		if (this.addConversionService) {
 			context.getBeanFactory().setConversionService(ApplicationConversionService.getSharedInstance());
 		}
@@ -759,6 +793,14 @@ public class SpringApplication {
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	protected void applyInitializers(ConfigurableApplicationContext context) {
+		// 默认有7个 initializer，容器ID、警告、日志监听都在这里实现
+//		0 = {DelegatingApplicationContextInitializer@2745}
+//		1 = {SharedMetadataReaderFactoryContextInitializer@2749}
+//		2 = {ContextIdApplicationContextInitializer@2750}
+//		3 = {ConfigurationWarningsApplicationContextInitializer@2751}
+//		4 = {RSocketPortInfoApplicationContextInitializer@2752}
+//		5 = {ServerPortInfoApplicationContextInitializer@2753}
+//		6 = {ConditionEvaluationReportLoggingListener@2754}
 		for (ApplicationContextInitializer initializer : getInitializers()) {
 			Class<?> requiredType = GenericTypeResolver.resolveTypeArgument(initializer.getClass(),
 					ApplicationContextInitializer.class);
@@ -1363,6 +1405,11 @@ public class SpringApplication {
 	 * @return the running {@link ApplicationContext}
 	 */
 	public static ConfigurableApplicationContext run(Class<?>[] primarySources, String[] args) {
+		// springboot 启动四步骤：
+		// 1. 服务构建 new SpringApplication(); 加载 META-INF/spring-factories 等
+		// 2. 环境准备 run -> environment, listeners, applicationArguments, printedBanner
+		// 3. 容器创建 run -> context = new Context(environment, listeners, applicationArguments, printedBanner);
+		// 4. 填充容器 run -> context.refresh
 		return new SpringApplication(primarySources).run(args);
 	}
 
