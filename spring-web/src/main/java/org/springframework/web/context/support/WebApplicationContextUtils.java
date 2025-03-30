@@ -181,7 +181,7 @@ public abstract class WebApplicationContextUtils {
 	 * @param sc the ServletContext that we're running within
 	 */
 	public static void registerWebApplicationScopes(ConfigurableListableBeanFactory beanFactory,
-			@Nullable ServletContext sc) {
+			@Nullable ServletContext sc) { // 注册 servlet 相关的一些 bean
 
 		beanFactory.registerScope(WebApplicationContext.SCOPE_REQUEST, new RequestScope());
 		beanFactory.registerScope(WebApplicationContext.SCOPE_SESSION, new SessionScope());
@@ -192,7 +192,7 @@ public abstract class WebApplicationContextUtils {
 			sc.setAttribute(ServletContextScope.class.getName(), appScope);
 		}
 
-		beanFactory.registerResolvableDependency(ServletRequest.class, new RequestObjectFactory());
+		beanFactory.registerResolvableDependency(ServletRequest.class, new RequestObjectFactory()); // 注册这几个 servlet 的常用bean
 		beanFactory.registerResolvableDependency(ServletResponse.class, new ResponseObjectFactory());
 		beanFactory.registerResolvableDependency(HttpSession.class, new SessionObjectFactory());
 		beanFactory.registerResolvableDependency(WebRequest.class, new WebRequestObjectFactory());
@@ -295,11 +295,11 @@ public abstract class WebApplicationContextUtils {
 			@Nullable ServletContext servletContext, @Nullable ServletConfig servletConfig) {
 
 		Assert.notNull(sources, "'propertySources' must not be null");
-		String name = StandardServletEnvironment.SERVLET_CONTEXT_PROPERTY_SOURCE_NAME;
+		String name = StandardServletEnvironment.SERVLET_CONTEXT_PROPERTY_SOURCE_NAME; // 获取servlet context属性源名称
 		if (servletContext != null && sources.get(name) instanceof StubPropertySource) {
 			sources.replace(name, new ServletContextPropertySource(name, servletContext));
 		}
-		name = StandardServletEnvironment.SERVLET_CONFIG_PROPERTY_SOURCE_NAME;
+		name = StandardServletEnvironment.SERVLET_CONFIG_PROPERTY_SOURCE_NAME; // 获取servlet config属性源名称
 		if (servletConfig != null && sources.get(name) instanceof StubPropertySource) {
 			sources.replace(name, new ServletConfigPropertySource(name, servletConfig));
 		}

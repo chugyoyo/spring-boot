@@ -131,8 +131,8 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 	@Override
 	protected void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		beanFactory.addBeanPostProcessor(new WebApplicationContextServletContextAwareProcessor(this));
-		beanFactory.ignoreDependencyInterface(ServletContextAware.class);
-		registerWebApplicationScopes();
+		beanFactory.ignoreDependencyInterface(ServletContextAware.class);// 忽略 ServletContextAware 接口
+		registerWebApplicationScopes(); // 注册 request、session 等 servlet 相关的作用域，以及 servlet 相关的bean
 	}
 
 	@Override
@@ -148,9 +148,9 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 
 	@Override
 	protected void onRefresh() {
-		super.onRefresh();
+		super.onRefresh(); //
 		try {
-			createWebServer();
+			createWebServer(); // 创建 web 服务器
 		}
 		catch (Throwable ex) {
 			throw new ApplicationContextException("Unable to start web server", ex);
@@ -176,7 +176,7 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 		WebServer webServer = this.webServer;
 		ServletContext servletContext = getServletContext();
 		if (webServer == null && servletContext == null) {
-			ServletWebServerFactory factory = getWebServerFactory();
+			ServletWebServerFactory factory = getWebServerFactory(); // 获取 web 服务器的工厂
 			this.webServer = factory.getWebServer(getSelfInitializer());
 		}
 		else if (servletContext != null) {
@@ -238,7 +238,7 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 
 	private void registerWebApplicationScopes() {
 		ExistingWebApplicationScopes existingScopes = new ExistingWebApplicationScopes(getBeanFactory());
-		WebApplicationContextUtils.registerWebApplicationScopes(getBeanFactory());
+		WebApplicationContextUtils.registerWebApplicationScopes(getBeanFactory()); // 注册逻辑
 		existingScopes.restore();
 	}
 

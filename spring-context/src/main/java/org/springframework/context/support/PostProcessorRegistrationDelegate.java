@@ -51,8 +51,8 @@ final class PostProcessorRegistrationDelegate {
 
 	private PostProcessorRegistrationDelegate() {
 	}
-
-
+	// 会调用 ClassPathBeanDeinitionScanner的doScan扫描bean注解，@Bean、@Import等，放入 beanDeinitionMap，后续可以根据bean定义创建bean对象
+	// // springboot refresh 的处理核心的就是 ConfigurationClassPostProcessor，通过其加载所有@Configuraion配置类 TODO 执行逻辑没找到
 	public static void invokeBeanFactoryPostProcessors(
 			ConfigurableListableBeanFactory beanFactory, List<BeanFactoryPostProcessor> beanFactoryPostProcessors) {
 
@@ -127,7 +127,7 @@ final class PostProcessorRegistrationDelegate {
 				currentRegistryProcessors.clear();
 			}
 
-			// Now, invoke the postProcessBeanFactory callback of all processors handled so far.
+			// 核心：Now, invoke the postProcessBeanFactory callback of all processors handled so far.
 			invokeBeanFactoryPostProcessors(registryProcessors, beanFactory);
 			invokeBeanFactoryPostProcessors(regularPostProcessors, beanFactory);
 		}
@@ -185,7 +185,7 @@ final class PostProcessorRegistrationDelegate {
 		// modified the original metadata, e.g. replacing placeholders in values...
 		beanFactory.clearMetadataCache();
 	}
-
+	// 将后置处理器排序等，然后放入beanFactory的beanPostProcessors中
 	public static void registerBeanPostProcessors(
 			ConfigurableListableBeanFactory beanFactory, AbstractApplicationContext applicationContext) {
 
@@ -286,7 +286,7 @@ final class PostProcessorRegistrationDelegate {
 	 */
 	private static void invokeBeanFactoryPostProcessors(
 			Collection<? extends BeanFactoryPostProcessor> postProcessors, ConfigurableListableBeanFactory beanFactory) {
-
+		// springboot 启动时，这里会处理  ConfigurationClassPostProcessor
 		for (BeanFactoryPostProcessor postProcessor : postProcessors) {
 			postProcessor.postProcessBeanFactory(beanFactory);
 		}

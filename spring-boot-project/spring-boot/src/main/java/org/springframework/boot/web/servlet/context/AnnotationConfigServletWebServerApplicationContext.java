@@ -199,7 +199,7 @@ public class AnnotationConfigServletWebServerApplicationContext extends ServletW
 
 	@Override
 	protected void prepareRefresh() {
-		this.scanner.clearCache();
+		this.scanner.clearCache();// 注释：清除缓存，为新的扫描做准备。
 		super.prepareRefresh();
 	}
 
