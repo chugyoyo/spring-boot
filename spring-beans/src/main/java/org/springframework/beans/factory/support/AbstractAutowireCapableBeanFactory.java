@@ -473,7 +473,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * populates the bean instance, applies post-processors, etc.
 	 * @see #doCreateBean
 	 */
-	@Override // 创建bean（bean生产的第2步）
+	@Override // 创建bean（bean生产的第2步：实例化阶段）
 	protected Object createBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
 			throws BeanCreationException {
 		// TRACE级别日志记录创建开始
@@ -500,7 +500,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					beanName, "Validation of method overrides failed", ex);// 方法覆盖校验失败
 		}
 
-		try {// 【核心】给InstantiationAwareBeanPostProcessor提前返回代理的机会（AOP关键入口）
+		try {// TODO【核心】给InstantiationAwareBeanPostProcessor提前返回代理的机会（AOP关键入口）
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse); // 执行@PostProcessBeforeInstantiation
 			if (bean != null) {
@@ -512,7 +512,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					"BeanPostProcessor before instantiation of bean failed", ex);  // 前置处理器异常
 		}
 
-		try { // 正式创建Bean实例（包含实例化->属性注入->初始化完整流程）
+		try { // TODO【核心】正式创建Bean实例（包含实例化->属性注入->初始化完整流程）
 			Object beanInstance = doCreateBean(beanName, mbdToUse, args); // 真正的执行创建bean的流程在这个方法
 			if (logger.isTraceEnabled()) {
 				logger.trace("Finished creating instance of bean '" + beanName + "'"); // 完成日志
@@ -543,40 +543,40 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see #instantiateBean
 	 * @see #instantiateUsingFactoryMethod
 	 * @see #autowireConstructor
-	 */ //
+	 */ // 这个方法处理Bean的实例化、属性填充、初始化以及循环依赖的处理
 	protected Object doCreateBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
 			throws BeanCreationException {
-
-		// Instantiate the bean.
+		// ========== 第一阶段：Bean实例化 ==========
+		// 1. 创建Bean实例包装器（处理FactoryBean缓存场景） // Instantiate the bean.
 		BeanWrapper instanceWrapper = null;
 		if (mbd.isSingleton()) {
-			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
+			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName); // 尝试从FactoryBean缓存中获取实例（处理重复创建场景）
 		}
-		if (instanceWrapper == null) {			// 2.2 实例化 Bean 实例，这里会根据不同的情况选择不同的实例化策略，例如构造器注入、工厂方法等。简单理解就是new了一个对象
-			instanceWrapper = createBeanInstance(beanName, mbd, args);
+		if (instanceWrapper == null) {// 2.2 实例化 Bean 实例，这里会根据不同的情况选择不同的实例化策略，例如构造器注入、工厂方法等。简单理解就是new了一个对象
+			instanceWrapper = createBeanInstance(beanName, mbd, args); // 【核心】实例化，使用策略模式：构造器注入/工厂方法/简单实例化
 		}
-		Object bean = instanceWrapper.getWrappedInstance();
-		Class<?> beanType = instanceWrapper.getWrappedClass();
+		Object bean = instanceWrapper.getWrappedInstance(); // 获取原始bean实例
+		Class<?> beanType = instanceWrapper.getWrappedClass(); // 获取bean类型
 		if (beanType != NullBean.class) {
-			mbd.resolvedTargetType = beanType;
+			mbd.resolvedTargetType = beanType; // 缓存解析后的类型
 		}
-
-		// Allow post-processors to modify the merged bean definition.
-		synchronized (mbd.postProcessingLock) {
+		// ========== 第二阶段：Bean定义后处理 ==========
+		// Allow post-processors to modify the merged bean definition.  应用合并后的Bean定义后置处理器（MergedBeanDefinitionPostProcessor）
+		synchronized (mbd.postProcessingLock) { // 同步锁保证线程安全
 			if (!mbd.postProcessed) {
-				try {
+				try {   // 执行@Autowired注解元数据解析（AutowiredAnnotationBeanPostProcessor在这里工作）
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
 					throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 							"Post-processing of merged bean definition failed", ex);
 				}
-				mbd.postProcessed = true;
+				mbd.postProcessed = true;// 标记已处理状态
 			}
 		}
-
+		// ========== 第三阶段：提前暴露单例引用（解决循环依赖核心） ==========
 		// Eagerly cache singletons to be able to resolve circular references
-		// even when triggered by lifecycle interfaces like BeanFactoryAware.
+		// even when triggered by lifecycle interfaces like BeanFactoryAware.4. 判断是否需要提前暴露早期引用（单例+允许循环引用+正在创建中）
 		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
 				isSingletonCurrentlyInCreation(beanName));
 		if (earlySingletonExposure) {
@@ -584,17 +584,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
-			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
+			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean)); // 5. 将单例工厂添加到三级缓存（singletonFactories）
 		}
-
+		// ========== 第四阶段：Bean初始化 ==========
 		// Initialize the bean instance.
 		Object exposedObject = bean;
 		try {
-			// 以下是 spring 循环注入的关键
-			// 属性注入 为实例化中new出来的对象填充属性
+			// 以下是 spring 循环注入的关键，处理@Autowired/@Value/@Resource等注解，通过BeanPostProcessor进行属性注入，触发依赖bean的实例化（可能形成循环依赖）
+			// 【核心】属性注入阶段（依赖注入核心逻辑）为实例化中new出来的对象填充属性
 			populateBean(beanName, mbd, instanceWrapper); // 填充bean属性！！！三级缓存机制在这里面
-			// 初始化 执行aware接口中的方法，初始化方法，完成AOP代理
-			exposedObject = initializeBean(beanName, exposedObject, mbd); // 实例化bean！！！
+			// 【核心】初始化阶段 （AOP代理在此阶段完成） 执行aware接口中的方法，初始化方法，完成AOP代理
+			exposedObject = initializeBean(beanName, exposedObject, mbd); // 实例化bean
 		}
 		catch (Throwable ex) {
 			if (ex instanceof BeanCreationException && beanName.equals(((BeanCreationException) ex).getBeanName())) {
@@ -605,22 +605,22 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						mbd.getResourceDescription(), beanName, "Initialization of bean failed", ex);
 			}
 		}
-
-		if (earlySingletonExposure) {
+		// ========== 第五阶段：处理循环依赖最终校验 ==========
+		if (earlySingletonExposure) { // 获取早期引用（可能来自二级缓存）
 			Object earlySingletonReference = getSingleton(beanName, false);
 			if (earlySingletonReference != null) {
-				if (exposedObject == bean) {
-					exposedObject = earlySingletonReference;
+				if (exposedObject == bean) {  // 如果未经过后处理
+					exposedObject = earlySingletonReference; // 使用早期引用
 				}
-				else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
+				else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) { // 校验被包装对象是否被错误注入（防止原始bean被注入）
 					String[] dependentBeans = getDependentBeans(beanName);
 					Set<String> actualDependentBeans = new LinkedHashSet<>(dependentBeans.length);
 					for (String dependentBean : dependentBeans) {
-						if (!removeSingletonIfCreatedForTypeCheckOnly(dependentBean)) {
+						if (!removeSingletonIfCreatedForTypeCheckOnly(dependentBean)) { // 检查依赖bean是否真实存在
 							actualDependentBeans.add(dependentBean);
 						}
 					}
-					if (!actualDependentBeans.isEmpty()) {
+					if (!actualDependentBeans.isEmpty()) { // 抛出著名的"Bean被注入原始版本"异常
 						throw new BeanCurrentlyInCreationException(beanName,
 								"Bean with name '" + beanName + "' has been injected into other beans [" +
 								StringUtils.collectionToCommaDelimitedString(actualDependentBeans) +
@@ -632,9 +632,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				}
 			}
 		}
-
+		// ========== 第六阶段：注册销毁逻辑 ==========
 		// Register bean as disposable.
-		try {
+		try { // 注册DisposableBean（处理destroy-method和@PreDestroy）
 			registerDisposableBeanIfNecessary(beanName, bean, mbd);
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -642,7 +642,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					mbd.getResourceDescription(), beanName, "Invalid destruction signature", ex);
 		}
 
-		return exposedObject;
+		return exposedObject; // 返回最终处理后的Bean（可能是代理对象）
 	}
 
 	@Override
