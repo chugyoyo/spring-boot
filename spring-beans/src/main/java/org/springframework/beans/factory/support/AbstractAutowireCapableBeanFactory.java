@@ -589,12 +589,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// ========== 第四阶段：Bean初始化 ==========
 		// Initialize the bean instance.
 		Object exposedObject = bean;
-		try {
-			// 以下是 spring 循环注入的关键，处理@Autowired/@Value/@Resource等注解，通过BeanPostProcessor进行属性注入，触发依赖bean的实例化（可能形成循环依赖）
-			// 【核心】属性注入阶段（依赖注入核心逻辑）为实例化中new出来的对象填充属性
-			populateBean(beanName, mbd, instanceWrapper); // 填充bean属性！！！三级缓存机制在这里面
-			// 【核心】初始化阶段 （AOP代理在此阶段完成） 执行aware接口中的方法，初始化方法，完成AOP代理
-			exposedObject = initializeBean(beanName, exposedObject, mbd); // 实例化bean
+		try {// 以下是 spring 循环注入的关键，处理@Autowired/@Value/@Resource等注解，通过BeanPostProcessor进行属性注入，触发依赖bean的实例化（可能形成循环依赖）
+			populateBean(beanName, mbd, instanceWrapper); // 【核心】属性注入阶段 三级缓存机制在这里面
+			exposedObject = initializeBean(beanName, exposedObject, mbd); //【核心】初始化阶段 （AOP代理在此阶段完成） 执行aware接口中的方法，初始化方法，完成AOP代理
 		}
 		catch (Throwable ex) {
 			if (ex instanceof BeanCreationException && beanName.equals(((BeanCreationException) ex).getBeanName())) {
