@@ -1159,57 +1159,57 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see #instantiateBean
 	 */ // 使用适当的实例化策略为指定的 bean 创建一个新实例：工厂方法、构造函数自动装配或简单实例化。创建bean实例，先获取构造方法，获取构造方法、准备参数、反射进行bean的构建
 	protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd, @Nullable Object[] args) {
-		// Make sure bean class is actually resolved at this point.
-		Class<?> beanClass = resolveBeanClass(mbd, beanName);
-		// 如果不是公共的会抛出错误
-		if (beanClass != null && !Modifier.isPublic(beanClass.getModifiers()) && !mbd.isNonPublicAccessAllowed()) {
+		// ========== 1. 解析Bean的Class对象 ==========
+		Class<?> beanClass = resolveBeanClass(mbd, beanName); // Make sure bean class is actually resolved at this point 确保此时已经成功解析Bean的Class（可能触发类加载）
+		// ========== 2. 访问权限校验 ==========
+		if (beanClass != null && !Modifier.isPublic(beanClass.getModifiers()) && !mbd.isNonPublicAccessAllowed()) { // 检查类访问权限：非public类且不允许非公开访问时抛出异常
 			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 					"Bean class isn't public, and non-public access not allowed: " + beanClass.getName());
 		}
-		//
-		Supplier<?> instanceSupplier = mbd.getInstanceSupplier();
+		// ========== 3. 处理Supplier实例化 ==========
+		Supplier<?> instanceSupplier = mbd.getInstanceSupplier(); // 优先使用JDK8+的Supplier接口进行实例化（最高优先级）
 		if (instanceSupplier != null) {
-			return obtainFromSupplier(instanceSupplier, beanName);
+			return obtainFromSupplier(instanceSupplier, beanName); // 通过Supplier.get()获取实例
 		}
-
+		// ========== 4. 工厂方法实例化 ==========
 		if (mbd.getFactoryMethodName() != null) {
-			return instantiateUsingFactoryMethod(beanName, mbd, args);
+			return instantiateUsingFactoryMethod(beanName, mbd, args); // 执行工厂方法实例化
 		}
-
-		// Shortcut when re-creating the same bean...
+		// ========== 5. 构造函数实例化决策 ==========
+		// Shortcut when re-creating the same bean... 尝试复用已解析的构造函数（避免重复解析提升性能）
 		boolean resolved = false;
 		boolean autowireNecessary = false;
-		if (args == null) {
-			synchronized (mbd.constructorArgumentLock) {
-				if (mbd.resolvedConstructorOrFactoryMethod != null) {
+		if (args == null) { // 无显式参数时才尝试复用
+			synchronized (mbd.constructorArgumentLock) { // 同步保证线程安全
+				if (mbd.resolvedConstructorOrFactoryMethod != null) { // 存在已解析的构造器/工厂方法
 					resolved = true;
-					autowireNecessary = mbd.constructorArgumentsResolved;
+					autowireNecessary = mbd.constructorArgumentsResolved; // 是否需要参数解析
 				}
 			}
-		}
+		}    // ========== 6. 使用缓存构造函数 ==========
 		if (resolved) {
-			if (autowireNecessary) {
+			if (autowireNecessary) { // 需要参数解析的构造器自动装配（处理@Autowired构造器场景）
 				return autowireConstructor(beanName, mbd, null, null);
 			}
-			else {
+			else { // 使用简单无参构造器实例化（常规情况）
 				return instantiateBean(beanName, mbd);
 			}
 		}
-
+		// ========== 7. 构造函数自动装配决策 ==========
 		// Candidate constructors for autowiring?
-		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
-		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR ||
-				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
-			return autowireConstructor(beanName, mbd, ctors, args);
+		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);// 通过Bean后处理器获取候选构造器（如AutowiredAnnotationBeanPostProcessor）
+		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR || 		// 判断是否需要构造器自动装配（满足任一条件）：1. 存在后处理器提供的候选构造器 2. 自动装配模式设置为构造器模式
+				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) { // 3. Bean定义包含构造器参数值 4. 调用时传入显式参数
+			return autowireConstructor(beanName, mbd, ctors, args); // 执行构造器自动装配
 		}
-
-		// Preferred constructors for default construction?
+		// ========== 8. 使用首选构造器 ==========
+		// Preferred constructors for default construction? 检查是否有通过@Lookup注解标记的首选构造器
 		ctors = mbd.getPreferredConstructors();
 		if (ctors != null) {
 			return autowireConstructor(beanName, mbd, ctors, null);
 		}
-
-		// No special handling: simply use no-arg constructor.
+		// ========== 9. 默认实例化策略 ==========
+		// No special handling: simply use no-arg constructor. 无特殊配置时，使用无参构造器实例化
 		return instantiateBean(beanName, mbd);
 	}
 
