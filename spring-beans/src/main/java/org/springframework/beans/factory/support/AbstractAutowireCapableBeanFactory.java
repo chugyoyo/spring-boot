@@ -476,55 +476,55 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	@Override // 创建bean（bean生产的第2步）
 	protected Object createBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
 			throws BeanCreationException {
-
+		// TRACE级别日志记录创建开始
 		if (logger.isTraceEnabled()) {
 			logger.trace("Creating instance of bean '" + beanName + "'");
 		}
-		RootBeanDefinition mbdToUse = mbd;
-
+		RootBeanDefinition mbdToUse = mbd; // 使用合并后的Bean定义
+		// 确保此时已解析Bean的实际Class对象（动态解析class场景处理）
 		// Make sure bean class is actually resolved at this point, and
 		// clone the bean definition in case of a dynamically resolved Class
 		// which cannot be stored in the shared merged bean definition.
-		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
+		Class<?> resolvedClass = resolveBeanClass(mbd, beanName); // 解析Bean的Class对象
 		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
-			mbdToUse = new RootBeanDefinition(mbd);
-			mbdToUse.setBeanClass(resolvedClass);
+			mbdToUse = new RootBeanDefinition(mbd);// 克隆Bean定义以存储动态解析的Class（避免污染共享定义）
+			mbdToUse.setBeanClass(resolvedClass); // 注入解析后的Class到新Bean定义
 		}
-
+		// 准备方法覆盖配置（lookup-method/replace-method）
 		// Prepare method overrides.
 		try {
-			mbdToUse.prepareMethodOverrides();
+			mbdToUse.prepareMethodOverrides();// 校验并准备方法重写配置
 		}
 		catch (BeanDefinitionValidationException ex) {
 			throw new BeanDefinitionStoreException(mbdToUse.getResourceDescription(),
-					beanName, "Validation of method overrides failed", ex);
+					beanName, "Validation of method overrides failed", ex);// 方法覆盖校验失败
 		}
 
-		try {
+		try {// 【核心】给InstantiationAwareBeanPostProcessor提前返回代理的机会（AOP关键入口）
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
-			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
+			Object bean = resolveBeforeInstantiation(beanName, mbdToUse); // 执行@PostProcessBeforeInstantiation
 			if (bean != null) {
-				return bean;
+				return bean; // 如果后处理器返回代理对象则直接返回（短路正常创建流程）
 			}
 		}
 		catch (Throwable ex) {
 			throw new BeanCreationException(mbdToUse.getResourceDescription(), beanName,
-					"BeanPostProcessor before instantiation of bean failed", ex);
+					"BeanPostProcessor before instantiation of bean failed", ex);  // 前置处理器异常
 		}
 
-		try {
+		try { // 正式创建Bean实例（包含实例化->属性注入->初始化完整流程）
 			Object beanInstance = doCreateBean(beanName, mbdToUse, args); // 真正的执行创建bean的流程在这个方法
 			if (logger.isTraceEnabled()) {
-				logger.trace("Finished creating instance of bean '" + beanName + "'");
+				logger.trace("Finished creating instance of bean '" + beanName + "'"); // 完成日志
 			}
 			return beanInstance;
 		}
 		catch (BeanCreationException | ImplicitlyAppearedSingletonException ex) {
 			// A previously detected exception with proper bean creation context already,
 			// or illegal singleton state to be communicated up to DefaultSingletonBeanRegistry.
-			throw ex;
+			throw ex; // 传播已明确上下文的创建异常/隐式单例异常（保留原始堆栈信息）
 		}
-		catch (Throwable ex) {
+		catch (Throwable ex) { // 包装其他未捕获异常为标准创建异常
 			throw new BeanCreationException(
 					mbdToUse.getResourceDescription(), beanName, "Unexpected exception during bean creation", ex);
 		}
