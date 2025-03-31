@@ -544,14 +544,14 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				// Initialize other special beans in specific context subclasses.
 				onRefresh(); // 构造并启动web容器
 
-				// Check for listener beans and register them.
+				// Check for listener beans and register them. 注册listner
 				registerListeners();
 
-				// Instantiate all remaining (non-lazy-init) singletons.
-				finishBeanFactoryInitialization(beanFactory);
+				// Instantiate all remaining (non-lazy-init) singletons. 生产所有的bean，构造对象->填充属性->初始化对象->注册销毁
+				finishBeanFactoryInitialization(beanFactory); // 【核心】bean的生命周期
 
 				// Last step: publish corresponding event.
-				finishRefresh();
+				finishRefresh(); // 正式提供mvc服务等
 			}
 
 			catch (BeansException ex) {
@@ -821,7 +821,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * Add beans that implement ApplicationListener as listeners.
 	 * Doesn't affect other listeners, which can be added without being beans.
 	 */
-	protected void registerListeners() {
+	protected void registerListeners() { // 将监听器注册到之前创建的应用事件广播器
 		// Register statically specified listeners first.
 		for (ApplicationListener<?> listener : getApplicationListeners()) {
 			getApplicationEventMulticaster().addApplicationListener(listener);
@@ -876,7 +876,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.freezeConfiguration();
 
 		// Instantiate all remaining (non-lazy-init) singletons.
-		beanFactory.preInstantiateSingletons();
+		beanFactory.preInstantiateSingletons(); // 【核心】遍历所有bean并实例化
 	}
 
 	/**

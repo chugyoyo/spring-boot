@@ -215,7 +215,7 @@ public class UndertowServletWebServerFactory extends AbstractServletWebServerFac
 
 	@Override
 	public WebServer getWebServer(ServletContextInitializer... initializers) {
-		DeploymentManager manager = createDeploymentManager(initializers);
+		DeploymentManager manager = createDeploymentManager(initializers); // 启动？
 		int port = getPort();
 		Builder builder = createBuilder(port);
 		return getUndertowWebServer(builder, manager, port);
@@ -290,7 +290,7 @@ public class UndertowServletWebServerFactory extends AbstractServletWebServerFac
 		}
 		addLocaleMappings(deployment);
 		DeploymentManager manager = Servlets.newContainer().addDeployment(deployment);
-		manager.deploy();
+		manager.deploy(); // 部署服务器
 		if (manager.getDeployment() instanceof DeploymentImpl) {
 			removeSuperfluousMimeMappings((DeploymentImpl) manager.getDeployment(), deployment);
 		}

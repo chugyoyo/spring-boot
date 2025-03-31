@@ -148,7 +148,7 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 
 	@Override
 	protected void onRefresh() {
-		super.onRefresh(); //
+		super.onRefresh(); // themeSource 刷新
 		try {
 			createWebServer(); // 创建 web 服务器
 		}
@@ -176,8 +176,8 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 		WebServer webServer = this.webServer;
 		ServletContext servletContext = getServletContext();
 		if (webServer == null && servletContext == null) {
-			ServletWebServerFactory factory = getWebServerFactory(); // 获取 web 服务器的工厂
-			this.webServer = factory.getWebServer(getSelfInitializer());
+			ServletWebServerFactory factory = getWebServerFactory(); // 获取 web 服务器的工厂，顺便填充必要组件
+			this.webServer = factory.getWebServer(getSelfInitializer()); // 获取webServer，+启动
 		}
 		else if (servletContext != null) {
 			try {
@@ -207,7 +207,7 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 			throw new ApplicationContextException("Unable to start ServletWebServerApplicationContext due to multiple "
 					+ "ServletWebServerFactory beans : " + StringUtils.arrayToCommaDelimitedString(beanNames));
 		}
-		return getBeanFactory().getBean(beanNames[0], ServletWebServerFactory.class);
+		return getBeanFactory().getBean(beanNames[0], ServletWebServerFactory.class); // bean 获取后会自动启动
 	}
 
 	/**
