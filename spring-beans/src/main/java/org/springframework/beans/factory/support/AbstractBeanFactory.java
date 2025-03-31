@@ -261,22 +261,28 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);  // 处理FactoryBean逻辑
 		}
 
-		else {  // 缓存不存在需要新建实例
+		else {
+			// Fail if we're already creating this bean instance:
+			// We're assumably within a circular reference. 	// 缓存不存在需要新建实例
 			if (isPrototypeCurrentlyInCreation(beanName)) {  // 原型作用域循环依赖检查
 				throw new BeanCurrentlyInCreationException(beanName);  // 原型不支持循环依赖直接抛出异常
 			}
 
+			// Check if bean definition exists in this factory.
 			BeanFactory parentBeanFactory = getParentBeanFactory();  // 获取父容器
 			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {  // 当前容器无定义且存在父容器
+				// Not found -> check parent.
 				String nameToLookup = originalBeanName(name);  // 解析原始名称（去除装饰符）
 				if (parentBeanFactory instanceof AbstractBeanFactory) {  // 父容器是抽象Bean工厂
 					return ((AbstractBeanFactory) parentBeanFactory).doGetBean(  // 递归调用父容器的doGetBean
 							nameToLookup, requiredType, args, typeCheckOnly);
 				}
 				else if (args != null) {  // 存在显式构造参数
+					// Delegation to parent with explicit args.
 					return (T) parentBeanFactory.getBean(nameToLookup, args);  // 带参数获取父容器bean
 				}
 				else if (requiredType != null) {  // 指定了requiredType
+					// No args -> delegate to standard getBean method.
 					return parentBeanFactory.getBean(nameToLookup, requiredType);  // 按类型获取父容器bean
 				}
 				else {
@@ -318,6 +324,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 							return createBean(beanName, mbd, args);  // 实际创建bean实例（模板方法）
 						}
 						catch (BeansException ex) {
+							// Explicitly remove instance from singleton cache: It might have been put there
+							// eagerly by the creation process, to allow for circular reference resolution.
+							// Also remove any beans that received a temporary reference to the bean.
 							destroySingleton(beanName);  // 创建失败时清理单例缓存
 							throw ex;
 						}
@@ -326,6 +335,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 
 				else if (mbd.isPrototype()) {  // 原型作用域处理
+					// It's a prototype -> create a new instance.
 					Object prototypeInstance = null;
 					try {
 						beforePrototypeCreation(beanName);  // 原型创建前记录状态
@@ -339,7 +349,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 				else {  // 自定义作用域处理（如request/session）
 					String scopeName = mbd.getScope();  // 获取作用域名称
+					if (!StringUtils.hasLength(scopeName)) {
+						throw new IllegalStateException("No scope name defined for bean ´" + beanName + "'");
+					}
 					Scope scope = this.scopes.get(scopeName);  // 获取注册的Scope实现
+					if (scope == null) {
+						throw new IllegalStateException("No Scope registered for scope name '" + scopeName + "'");
+					}
 					try {
 						Object scopedInstance = scope.get(beanName, () -> {  // 通过Scope获取实例
 							beforePrototypeCreation(beanName);  // 使用原型创建前逻辑
