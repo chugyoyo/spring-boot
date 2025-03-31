@@ -553,7 +553,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName); // 尝试从FactoryBean缓存中获取实例（处理重复创建场景）
 		}
 		if (instanceWrapper == null) {// 2.2 实例化 Bean 实例，这里会根据不同的情况选择不同的实例化策略，例如构造器注入、工厂方法等。简单理解就是new了一个对象
-			instanceWrapper = createBeanInstance(beanName, mbd, args); // 【核心】实例化，使用策略模式：构造器注入/工厂方法/简单实例化
+			instanceWrapper = createBeanInstance(beanName, mbd, args); /// 【核心】实例化，使用策略模式：构造器注入/工厂方法/简单实例化
 		}
 		Object bean = instanceWrapper.getWrappedInstance(); // 获取原始bean实例
 		Class<?> beanType = instanceWrapper.getWrappedClass(); // 获取bean类型
@@ -589,8 +589,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// ========== 第四阶段：Bean初始化 ==========
 		// Initialize the bean instance.
 		Object exposedObject = bean;
-		try {// 以下是 spring 循环注入的关键，处理@Autowired/@Value/@Resource等注解，通过BeanPostProcessor进行属性注入，触发依赖bean的实例化（可能形成循环依赖）
-			populateBean(beanName, mbd, instanceWrapper); // 【核心】属性注入阶段 三级缓存机制在这里面
+		try {/// 以下是 spring 循环注入的关键，处理@Autowired/@Value/@Resource等注解，通过BeanPostProcessor进行属性注入，触发依赖bean的实例化（可能形成循环依赖）
+			populateBean(beanName, mbd, instanceWrapper); /// 【核心】属性注入阶段 三级缓存机制在这里面
 			exposedObject = initializeBean(beanName, exposedObject, mbd); //【核心】初始化阶段 （AOP代理在此阶段完成） 执行aware接口中的方法，初始化方法，完成AOP代理
 		}
 		catch (Throwable ex) {
@@ -1365,17 +1365,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@SuppressWarnings("deprecation")  // for postProcessPropertyValues 创建 Bean 对象 ；填充 bean 属性
 	protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
-		if (bw == null) {
-			if (mbd.hasPropertyValues()) {
+		if (bw == null) { // 检查BeanWrapper是否为空（可能发生在某些后处理器短路实例化的情况下）
+			if (mbd.hasPropertyValues()) { // 存在属性值但实例为空时抛出异常（属性和实例不匹配）
 				throw new BeanCreationException(
 						mbd.getResourceDescription(), beanName, "Cannot apply property values to null instance");
 			}
 			else {
-				// Skip property population phase for null instance.
+				// Skip property population phase for null instance.// 没有属性值且实例为空时直接返回（跳过属性填充阶段）
 				return;
 			}
 		}
-
+		// 让所有InstantiationAwareBeanPostProcessor有机会在属性设置前修改bean状态（例如@Autowired字段注入）
 		// Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
 		// state of the bean before properties are set. This can be used, for example,
 		// to support styles of field injection.
@@ -1383,63 +1383,63 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
-					if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
-						return;
+					if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {// 执行postProcessAfterInstantiation回调（返回false则终止属性填充）
+						return;// 若某个后处理器要求终止则直接返回
 					}
 				}
 			}
 		}
-
+		// 获取合并后的属性值（来自XML配置或注解元数据）
 		PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
-
+		// 处理自动装配逻辑（byName/byType）
 		int resolvedAutowireMode = mbd.getResolvedAutowireMode();
 		if (resolvedAutowireMode == AUTOWIRE_BY_NAME || resolvedAutowireMode == AUTOWIRE_BY_TYPE) {
 			MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
-			// Add property values based on autowire by name if applicable.
+			// Add property values based on autowire by name if applicable. // 按名称自动装配（查找匹配名称的bean注入）
 			if (resolvedAutowireMode == AUTOWIRE_BY_NAME) {
-				autowireByName(beanName, mbd, bw, newPvs);
+				autowireByName(beanName, mbd, bw, newPvs);// 填充newPvs
 			}
-			// Add property values based on autowire by type if applicable.
+			// Add property values based on autowire by type if applicable. // 按类型自动装配（查找匹配类型的bean注入）
 			if (resolvedAutowireMode == AUTOWIRE_BY_TYPE) {
-				autowireByType(beanName, mbd, bw, newPvs);
+				autowireByType(beanName, mbd, bw, newPvs);// 填充newPvs
 			}
-			pvs = newPvs;
+			pvs = newPvs; // 更新最终使用的属性值
 		}
-
+		// 判断是否需要执行依赖检查（检查对象是否所有依赖都被满足）
 		boolean hasInstAwareBpps = hasInstantiationAwareBeanPostProcessors();
 		boolean needsDepCheck = (mbd.getDependencyCheck() != AbstractBeanDefinition.DEPENDENCY_CHECK_NONE);
 
-		PropertyDescriptor[] filteredPds = null;
-		if (hasInstAwareBpps) {
+		PropertyDescriptor[] filteredPds = null; // 缓存过滤后的属性描述符
+		if (hasInstAwareBpps) {// 执行InstantiationAwareBeanPostProcessor的属性处理阶段（如@Autowired/@Value注解处理）
 			if (pvs == null) {
-				pvs = mbd.getPropertyValues();
+				pvs = mbd.getPropertyValues(); // 确保属性值不为空
 			}
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
-					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
-					if (pvsToUse == null) {
-						if (filteredPds == null) {
+					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);/// 后处理器处理属性值（重要：AutowiredAnnotationBeanPostProcessor在此注入依赖）
+					if (pvsToUse == null) { // 兼容旧版本处理逻辑
+						if (filteredPds == null) { // 过滤出需要检查的属性描述符（排除非依赖属性）
 							filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
 						}
 						pvsToUse = ibp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
-						if (pvsToUse == null) {
+						if (pvsToUse == null) { // 后处理器要求跳过属性填充
 							return;
 						}
 					}
-					pvs = pvsToUse;
+					pvs = pvsToUse; // 更新处理后的属性值
 				}
 			}
 		}
-		if (needsDepCheck) {
+		if (needsDepCheck) { // 执行依赖检查（确保所有需要的依赖都已解析）
 			if (filteredPds == null) {
 				filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
 			}
-			checkDependencies(beanName, mbd, filteredPds, pvs);
+			checkDependencies(beanName, mbd, filteredPds, pvs); // 检查属性是否满足依赖要求（如@Required注解字段）
 		}
-
+		// 应用最终处理后的属性值到Bean实例（通过反射设置字段值或调用setter方法）
 		if (pvs != null) {
-			applyPropertyValues(beanName, mbd, bw, pvs);
+			applyPropertyValues(beanName, mbd, bw, pvs);// 属性赋值的最终执行点
 		}
 	}
 
