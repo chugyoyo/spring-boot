@@ -500,7 +500,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					beanName, "Validation of method overrides failed", ex);// 方法覆盖校验失败
 		}
 
-		try {// TODO【核心】给InstantiationAwareBeanPostProcessor提前返回代理的机会（AOP关键入口）
+		try {/// 【核心】给InstantiationAwareBeanPostProcessor提前返回代理的机会（AOP关键入口）
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse); // 执行@PostProcessBeforeInstantiation
 			if (bean != null) {
@@ -512,7 +512,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					"BeanPostProcessor before instantiation of bean failed", ex);  // 前置处理器异常
 		}
 
-		try { // TODO【核心】正式创建Bean实例（包含实例化->属性注入->初始化完整流程）
+		try { ///【核心】正式创建Bean实例（包含实例化->属性注入->初始化完整流程）
 			Object beanInstance = doCreateBean(beanName, mbdToUse, args); // 真正的执行创建bean的流程在这个方法
 			if (logger.isTraceEnabled()) {
 				logger.trace("Finished creating instance of bean '" + beanName + "'"); // 完成日志
@@ -1417,7 +1417,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			for (BeanPostProcessor bp : getBeanPostProcessors()) {
 				if (bp instanceof InstantiationAwareBeanPostProcessor) {
 					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
-					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);/// 后处理器处理属性值（重要：AutowiredAnnotationBeanPostProcessor在此注入依赖）
+					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);/// 后处理器处理属性值（重要：AutowiredAnnotationBeanPostProcessor/CommonAnnotationBeanPostProcessor负责在此注入依赖）
 					if (pvsToUse == null) { // 兼容旧版本处理逻辑
 						if (filteredPds == null) { // 过滤出需要检查的属性描述符（排除非依赖属性）
 							filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);

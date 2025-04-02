@@ -396,7 +396,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
 		try {
-			metadata.inject(bean, beanName, pvs);
+			metadata.inject(bean, beanName, pvs); // @Autowired 注入依赖
 		}
 		catch (BeanCreationException ex) {
 			throw ex;
@@ -440,81 +440,81 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 
 	private InjectionMetadata findAutowiringMetadata(String beanName, Class<?> clazz, @Nullable PropertyValues pvs) {
-		// Fall back to class name as cache key, for backwards compatibility with custom callers.
-		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
-		// Quick check on the concurrent map first, with minimal locking.
-		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
-		if (InjectionMetadata.needsRefresh(metadata, clazz)) {
-			synchronized (this.injectionMetadataCache) {
-				metadata = this.injectionMetadataCache.get(cacheKey);
+		// ========== 1. 生成缓存键 ==========
+		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName()); // Fall back to class name as cache key, for backwards compatibility with custom callers. 优先使用beanName作为缓存键，若beanName为空则回退到类名（兼容旧版本自定义调用者）
+		// ========== 2. 无锁快速缓存检查 ==========
+		InjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey); // Quick check on the concurrent map first, with minimal locking. 首先从并发映射中无锁快速检查（最小化性能开销）
+		if (InjectionMetadata.needsRefresh(metadata, clazz)) { // ========== 3. 判断元数据是否需要刷新 ==========     // 检查缓存元数据是否失效（例如类字节码被增强/热替换）
+			synchronized (this.injectionMetadataCache) { // 进入同步块保证线程安全（防止并发重复构建元数据）
+				metadata = this.injectionMetadataCache.get(cacheKey); // 双重检查锁定模式（Double-Check Locking）
 				if (InjectionMetadata.needsRefresh(metadata, clazz)) {
-					if (metadata != null) {
-						metadata.clear(pvs);
+					if (metadata != null) { // ========== 4. 清理旧元数据 ==========
+						metadata.clear(pvs); // 清理可能存在的属性值关联
 					}
-					metadata = buildAutowiringMetadata(clazz);
-					this.injectionMetadataCache.put(cacheKey, metadata);
+					metadata = buildAutowiringMetadata(clazz);/// ========== 5. 构建新元数据 ========== // 核心：解析类中的@Autowired/@Value等注入元数据
+					this.injectionMetadataCache.put(cacheKey, metadata);  // ========== 6. 更新缓存 ==========  // 刷新缓存条目
 				}
 			}
 		}
-		return metadata;
+		return metadata; // 返回，包含字段/方法的注入信息集合
 	}
 
 	private InjectionMetadata buildAutowiringMetadata(final Class<?> clazz) {
-		if (!AnnotationUtils.isCandidateClass(clazz, this.autowiredAnnotationTypes)) {
-			return InjectionMetadata.EMPTY;
+		if (!AnnotationUtils.isCandidateClass(clazz, this.autowiredAnnotationTypes)) {     // ========== 1. 候选类快速检查 ==========     // 检查类是否包含任何自动装配注解（如@Autowired/@Value/@Inject）
+			return InjectionMetadata.EMPTY;  // 无相关注解直接返回空元数据
 		}
-
+		// ========== 2. 准备注入元素收集器 ==========
 		List<InjectionMetadata.InjectedElement> elements = new ArrayList<>();
-		Class<?> targetClass = clazz;
+		Class<?> targetClass = clazz;  // 从当前类开始扫描
 
 		do {
 			final List<InjectionMetadata.InjectedElement> currElements = new ArrayList<>();
-
-			ReflectionUtils.doWithLocalFields(targetClass, field -> {
-				MergedAnnotation<?> ann = findAutowiredAnnotation(field);
+			// ========== 3. 处理类字段 ==========
+			ReflectionUtils.doWithLocalFields(targetClass, field -> { // 遍历类中声明的所有字段（不包含继承字段）
+				MergedAnnotation<?> ann = findAutowiredAnnotation(field); // 3.1 查找字段上的自动装配注解
 				if (ann != null) {
-					if (Modifier.isStatic(field.getModifiers())) {
+					if (Modifier.isStatic(field.getModifiers())) { // 3.2 静态字段处理（不支持自动装配）
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation is not supported on static fields: " + field);
 						}
-						return;
+						return; // 跳过静态字段
 					}
-					boolean required = determineRequiredStatus(ann);
-					currElements.add(new AutowiredFieldElement(field, required));
+					boolean required = determineRequiredStatus(ann);  // 3.3 确定是否必需注入（根据注解的required属性）
+					currElements.add(new AutowiredFieldElement(field, required));  // 3.4 创建字段注入元素
 				}
 			});
-
-			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
-				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
+			// ========== 4. 处理方法 ==========
+			ReflectionUtils.doWithLocalMethods(targetClass, method -> { // 遍历类中声明的所有方法（不包含继承方法）
+				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method); // 4.1 处理桥接方法（泛型方法生成的合成方法）
 				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
-					return;
+					return; // 跳过无效的桥接方法对
 				}
-				MergedAnnotation<?> ann = findAutowiredAnnotation(bridgedMethod);
+				MergedAnnotation<?> ann = findAutowiredAnnotation(bridgedMethod); // 4.2 查找方法上的自动装配注解
 				if (ann != null && method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
-					if (Modifier.isStatic(method.getModifiers())) {
+					if (Modifier.isStatic(method.getModifiers())) { // 4.3 静态方法处理（不支持自动装配）
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation is not supported on static methods: " + method);
 						}
-						return;
+						return; // 跳过静态方法
 					}
-					if (method.getParameterCount() == 0) {
+					if (method.getParameterCount() == 0) { // 4.4 检查方法参数（必须要有参数）
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation should only be used on methods with parameters: " +
 									method);
 						}
 					}
-					boolean required = determineRequiredStatus(ann);
-					PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
-					currElements.add(new AutowiredMethodElement(method, required, pd));
+					boolean required = determineRequiredStatus(ann); // 4.5 确定必需状态
+					PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz); // 4.6 查找对应的JavaBean属性描述符（用于属性名匹配）
+					currElements.add(new AutowiredMethodElement(method, required, pd)); // 4.7 创建方法注入元素
 				}
 			});
-
-			elements.addAll(0, currElements);
-			targetClass = targetClass.getSuperclass();
+			// ========== 5. 合并注入元素 ==========
+			elements.addAll(0, currElements); // 将当前类的元素插入列表头部（保证父类元素优先处理）
+			targetClass = targetClass.getSuperclass(); // 向上遍历父类
 		}
-		while (targetClass != null && targetClass != Object.class);
-
-		return InjectionMetadata.forElements(elements, clazz);
+		while (targetClass != null && targetClass != Object.class); // 直到Object类停止
+		// ========== 6. 构建最终元数据 ==========
+		return InjectionMetadata.forElements(elements, clazz); // 封装为不可变元数据对象
 	}
 
 	@Nullable
@@ -625,46 +625,46 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 		@Override
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
-			Field field = (Field) this.member;
-			Object value;
-			if (this.cached) {
-				value = resolvedCachedArgument(beanName, this.cachedFieldValue);
+			Field field = (Field) this.member; // 将成员变量强制转换为Field类型（当前处理字段注入）
+			Object value; // 存储待注入的值
+			if (this.cached) { // 检查是否已缓存依赖解析结果
+				value = resolvedCachedArgument(beanName, this.cachedFieldValue); // 从缓存中获取已解析的依赖值（避免重复解析）
 			}
 			else {
-				DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
-				desc.setContainingClass(bean.getClass());
-				Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
-				Assert.state(beanFactory != null, "No BeanFactory available");
-				TypeConverter typeConverter = beanFactory.getTypeConverter();
+				DependencyDescriptor desc = new DependencyDescriptor(field, this.required); // 创建依赖描述符（封装字段元数据和required状态）
+				desc.setContainingClass(bean.getClass()); // 设置包含类为当前bean的类型（用于后续类型解析）
+				Set<String> autowiredBeanNames = new LinkedHashSet<>(1); // 初始化自动装配bean名称集合（容量1优化常见单依赖场景）
+				Assert.state(beanFactory != null, "No BeanFactory available"); // 断言确保BeanFactory可用（防止NPE）
+				TypeConverter typeConverter = beanFactory.getTypeConverter(); // 获取类型转换器（用于处理泛型/集合类型转换）
 				try {
-					value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
+					value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter); /// 核心：解析字段依赖（可能触发依赖bean的创建）
 				}
 				catch (BeansException ex) {
-					throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
+					throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex); // 转换异常为带详细上下文的未满足依赖异常
 				}
-				synchronized (this) {
-					if (!this.cached) {
-						Object cachedFieldValue = null;
-						if (value != null || this.required) {
-							cachedFieldValue = desc;
-							registerDependentBeans(beanName, autowiredBeanNames);
-							if (autowiredBeanNames.size() == 1) {
+				synchronized (this) { // 同步块保证线程安全的缓存处理
+					if (!this.cached) { // 双重检查锁定模式
+						Object cachedFieldValue = null; // 初始化缓存值
+						if (value != null || this.required) { // 仅当值存在或要求必须注入时缓存描述符
+							cachedFieldValue = desc; // 缓存原始描述符
+							registerDependentBeans(beanName, autowiredBeanNames); // 注册依赖关系（用于销毁时的顺序控制）
+							if (autowiredBeanNames.size() == 1) { // 优化：单个依赖且类型匹配时使用快捷描述符
 								String autowiredBeanName = autowiredBeanNames.iterator().next();
 								if (beanFactory.containsBean(autowiredBeanName) &&
 										beanFactory.isTypeMatch(autowiredBeanName, field.getType())) {
 									cachedFieldValue = new ShortcutDependencyDescriptor(
-											desc, autowiredBeanName, field.getType());
+											desc, autowiredBeanName, field.getType()); // 创建快捷依赖描述符（提升后续解析效率）
 								}
 							}
 						}
-						this.cachedFieldValue = cachedFieldValue;
-						this.cached = true;
+						this.cachedFieldValue = cachedFieldValue; // 更新缓存字段值
+						this.cached = true; // 标记已缓存状态
 					}
 				}
 			}
-			if (value != null) {
-				ReflectionUtils.makeAccessible(field);
-				field.set(bean, value);
+			if (value != null) { // 将解析到的值注入字段
+				ReflectionUtils.makeAccessible(field); // 确保字段可访问（突破private等访问限制）
+				field.set(bean, value); // 通过反射设置字段值
 			}
 		}
 	}

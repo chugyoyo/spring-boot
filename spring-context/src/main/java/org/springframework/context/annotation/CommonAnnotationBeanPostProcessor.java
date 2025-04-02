@@ -524,7 +524,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 				}
 			}
 			else {
-				resource = beanFactory.resolveBeanByName(name, descriptor);
+				resource = beanFactory.resolveBeanByName(name, descriptor); // 这里要创建bean，递归，栈不会溢出吗？
 				autowiredBeanNames = Collections.singleton(name);
 			}
 		}

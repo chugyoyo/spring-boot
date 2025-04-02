@@ -111,12 +111,12 @@ public class InjectionMetadata {
 	}
 
 	public void inject(Object target, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
-		Collection<InjectedElement> checkedElements = this.checkedElements;
-		Collection<InjectedElement> elementsToIterate =
+		Collection<InjectedElement> checkedElements = this.checkedElements; // 获取已通过校验的注入元素集合（可能为null）
+		Collection<InjectedElement> elementsToIterate = // 确定最终要遍历的注入元素集合：1. 优先使用已校验过的元素集合（checkedElements）2. 若未校验过则使用原始注入元素集合（injectedElements）
 				(checkedElements != null ? checkedElements : this.injectedElements);
-		if (!elementsToIterate.isEmpty()) {
-			for (InjectedElement element : elementsToIterate) {
-				element.inject(target, beanName, pvs);
+		if (!elementsToIterate.isEmpty()) { // 仅当存在需要处理的注入元素时执行注入操作
+			for (InjectedElement element : elementsToIterate) { // 遍历所有注入元素（字段或方法）
+				element.inject(target, beanName, pvs); // 执行单个元素的注入操作（多态调用，实际可能是字段或方法注入）todo 在这里打断点可以排查用户定义的注入
 			}
 		}
 	}
