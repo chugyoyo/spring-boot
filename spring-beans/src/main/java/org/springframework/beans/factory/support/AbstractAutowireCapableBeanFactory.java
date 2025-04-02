@@ -584,7 +584,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
-			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean)); // 5. 将单例工厂添加到三级缓存（singletonFactories）
+			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean)); /// 5. 将单例工厂添加到三级缓存（singletonFactories）提前暴露对象，解决循环依赖
 		}
 		// ========== 第四阶段：Bean初始化 ==========
 		// Initialize the bean instance.
@@ -1300,21 +1300,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */ // 实例化 bean
 	protected BeanWrapper instantiateBean(String beanName, RootBeanDefinition mbd) {
 		try {
-			Object beanInstance;
-			if (System.getSecurityManager() != null) {
-				beanInstance = AccessController.doPrivileged(
+			Object beanInstance; // 声明Bean实例变量
+			if (System.getSecurityManager() != null) { // ========== 1. 安全策略处理 ========== // 检查是否存在安全管理器（处理沙箱环境下的权限问题）
+				beanInstance = AccessController.doPrivileged(  // 使用特权动作执行实例化（绕过安全限制）
 						(PrivilegedAction<Object>) () -> getInstantiationStrategy().instantiate(mbd, beanName, this),
-						getAccessControlContext());
+						getAccessControlContext()); // 获取当前访问控制上下文
 			}
-			else {
-				beanInstance = getInstantiationStrategy().instantiate(mbd, beanName, this);
-			}
-			BeanWrapper bw = new BeanWrapperImpl(beanInstance);
-			initBeanWrapper(bw);
-			return bw;
+			else { // 无安全管理器时直接调用实例化策略
+				beanInstance = getInstantiationStrategy().instantiate(mbd, beanName, this); /**{@link SimpleInstantiationStrategy#instantiate(RootBeanDefinition, String, BeanFactory)} **/
+			} // ========== 2. 创建Bean包装器 ==========
+			BeanWrapper bw = new BeanWrapperImpl(beanInstance); // 使用BeanWrapperImpl包装Bean实例（提供属性访问能力）
+			initBeanWrapper(bw); // ========== 3. 初始化包装器配置 ========== // 设置类型转换器、属性编辑器等
+			return bw; // 返回包装后的Bean实例
 		}
-		catch (Throwable ex) {
-			throw new BeanCreationException(
+		catch (Throwable ex) { // ========== 4. 异常处理 ==========
+			throw new BeanCreationException( // 封装为Bean创建异常，包含详细的上下文信息
 					mbd.getResourceDescription(), beanName, "Instantiation of bean failed", ex);
 		}
 	}

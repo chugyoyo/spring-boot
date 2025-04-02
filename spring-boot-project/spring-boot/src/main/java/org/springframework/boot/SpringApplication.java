@@ -380,6 +380,8 @@ public class SpringApplication {
 			 * 在以下步骤，会生产自身或用户提供的所有bean，并且放入到bean容器
 			 * 这个过程也叫：自动装配！
 			 * 有12个步骤，有生命周期管理，同时会启动web服务器
+			 * {@link AnnotationConfigServletWebServerApplicationContext#beanFactory
+			 * {@link DefaultListableBeanFactory#beanDefinitionMap
 			 */
 			// **核心步骤**：刷新应用上下文（加载Bean、初始化容器、启动Web服务器）
 			// 这里是 交给 springframework 的 org.springframework.context.support.AbstractApplicationContext 处理

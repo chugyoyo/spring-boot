@@ -530,7 +530,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				postProcessBeanFactory(beanFactory);
 
 				// 【非常重要的一步，也是ioc容器初始化的最核心】Invoke factory processors registered as beans in the context.
-				invokeBeanFactoryPostProcessors(beanFactory); // 反射处理 容器创建时注册的各种beanFactory的后置处理器
+				invokeBeanFactoryPostProcessors(beanFactory); /// 反射处理 容器创建时注册的各种beanFactory的后置处理器（todo bean扫描进来的逻辑？）
 
 				// Register bean processors that intercept bean creation. 排序bean后置处理器，然后放入后置处理器池子，这些后置处理器会在bean初始化之前或者之后处理对应的逻辑
 				registerBeanPostProcessors(beanFactory);
@@ -548,7 +548,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons. 生产所有的bean，构造对象->填充属性->初始化对象->注册销毁
-				finishBeanFactoryInitialization(beanFactory); // 【核心】bean的生命周期
+				finishBeanFactoryInitialization(beanFactory); /// 【核心】bean的生命周期
 
 				// Last step: publish corresponding event.
 				finishRefresh(); // 正式提供mvc服务等
@@ -704,7 +704,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * <p>Must be called before singleton instantiation.
 	 */
 	protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
-		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors()); // 核心处理逻辑
+		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors()); // 核心处理逻辑（委派模式）
 
 		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
 		// (e.g. through an @Bean method registered by ConfigurationClassPostProcessor)
@@ -876,7 +876,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.freezeConfiguration();
 
 		// Instantiate all remaining (non-lazy-init) singletons.
-		beanFactory.preInstantiateSingletons(); // 【核心】遍历所有bean并实例化
+		beanFactory.preInstantiateSingletons(); /// 【核心】遍历所有bean并实例化
 	}
 
 	/**

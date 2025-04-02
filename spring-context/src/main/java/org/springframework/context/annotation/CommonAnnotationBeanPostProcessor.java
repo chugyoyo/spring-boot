@@ -524,7 +524,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 				}
 			}
 			else {
-				resource = beanFactory.resolveBeanByName(name, descriptor); // 这里要创建bean，递归，栈不会溢出吗？
+				resource = beanFactory.resolveBeanByName(name, descriptor); /// 这里要创建bean，递归
 				autowiredBeanNames = Collections.singleton(name);
 			}
 		}
@@ -537,7 +537,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			ConfigurableBeanFactory beanFactory = (ConfigurableBeanFactory) factory;
 			for (String autowiredBeanName : autowiredBeanNames) {
 				if (requestingBeanName != null && beanFactory.containsBean(autowiredBeanName)) {
-					beanFactory.registerDependentBean(autowiredBeanName, requestingBeanName);
+					beanFactory.registerDependentBean(autowiredBeanName, requestingBeanName); // 创建完成后，注册bean依赖关系，双向的
 				}
 			}
 		}

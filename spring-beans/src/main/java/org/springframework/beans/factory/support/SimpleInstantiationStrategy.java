@@ -75,7 +75,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 									(PrivilegedExceptionAction<Constructor<?>>) clazz::getDeclaredConstructor);
 						}
 						else {
-							constructorToUse = clazz.getDeclaredConstructor();
+							constructorToUse = clazz.getDeclaredConstructor(); // 从类中获取构造器
 						}
 						bd.resolvedConstructorOrFactoryMethod = constructorToUse;
 					}
@@ -84,7 +84,7 @@ public class SimpleInstantiationStrategy implements InstantiationStrategy {
 					}
 				}
 			}
-			return BeanUtils.instantiateClass(constructorToUse);
+			return BeanUtils.instantiateClass(constructorToUse); /// 通过构造器实例化类
 		}
 		else {
 			// Must generate CGLIB subclass.

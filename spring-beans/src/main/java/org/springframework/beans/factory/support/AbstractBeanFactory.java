@@ -197,7 +197,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	// Implementation of BeanFactory interface
 	//---------------------------------------------------------------------
 
-	@Override // 注释：获取bean实例，如果不存在则创建
+	@Override // 获取bean实例，如果不存在则创建
 	public Object getBean(String name) throws BeansException {
 		return doGetBean(name, null, null, false); // 根据名称获取bean
 	}
@@ -247,7 +247,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons. 急切检查单例缓存中的手动注册单例
-		Object sharedInstance = getSingleton(beanName);  // 从三级缓存获取已存在的单例实例
+		Object sharedInstance = getSingleton(beanName);  /// 从三级缓存获取已存在的单例实例
 		if (sharedInstance != null && args == null) {  // 存在缓存且无显式构造参数
 			if (logger.isTraceEnabled()) {
 				if (isSingletonCurrentlyInCreation(beanName)) {  // 检查是否处于创建状态（处理循环依赖）
@@ -319,9 +319,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 				// Create bean instance. 根据作用域创建bean实例
 				if (mbd.isSingleton()) {  // 单例作用域处理
-					sharedInstance = getSingleton(beanName, () -> {  // 通过回调创建单例（核心入口）
+					sharedInstance = getSingleton(beanName, () -> {  /// 通过回调创建单例（核心入口）
 						try {
-							return createBean(beanName, mbd, args);  // 实际创建bean实例（模板方法）
+							return createBean(beanName, mbd, args);  /// 实际创建bean实例（模板方法）
 						}
 						catch (BeansException ex) {
 							// Explicitly remove instance from singleton cache: It might have been put there

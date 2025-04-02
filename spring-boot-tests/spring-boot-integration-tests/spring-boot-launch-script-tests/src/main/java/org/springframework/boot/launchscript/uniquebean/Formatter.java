@@ -1,4 +1,4 @@
-package org.springframework.boot.launchscript.uniquebean;
-
-public interface Formatter {
-}
+//package org.springframework.boot.launchscript.uniquebean;
+//
+//public interface Formatter {
+//}
