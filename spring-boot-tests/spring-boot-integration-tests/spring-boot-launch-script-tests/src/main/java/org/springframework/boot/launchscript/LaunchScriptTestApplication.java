@@ -19,13 +19,15 @@ package org.springframework.boot.launchscript;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 
-@EnableAutoConfiguration // 引入 spring 的构建后，不加这个注解找不到 ServletWebServerFactory，自动配置因为某种原因失效 TODO 有待排查
+//@EnableAutoConfiguration // 引入 spring 的构建后，不加这个注解找不到 ServletWebServerFactory，自动配置因为某种原因失效 TODO 有待排查
 @SpringBootApplication(scanBasePackageClasses = ScanBasePackagesUtil.class)
 public class LaunchScriptTestApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(LaunchScriptTestApplication.class, args);
+		ConfigurableApplicationContext context = SpringApplication.run(LaunchScriptTestApplication.class, args);
+		context.close(); // 主动触发关闭 （测试生命周期）
 	}
 
 }

@@ -1,4 +1,4 @@
-logging:
-  level:
-    org.springframework.beans: TRACE
-    org.springframework.context: DEBUG
+#logging:
+#  level:
+#    org.springframework.beans: TRACE
+#    org.springframework.context: DEBUG

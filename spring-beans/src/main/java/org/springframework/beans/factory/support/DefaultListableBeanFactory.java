@@ -894,7 +894,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 					}
 				}
 				else {
-					getBean(beanName); // 大部分的 getBean 逻辑
+					getBean(beanName); // 逻辑通过名称获取 Bean，从这里打断点能很好地观察用户定义bean的生命周期
 				}
 			}
 		}

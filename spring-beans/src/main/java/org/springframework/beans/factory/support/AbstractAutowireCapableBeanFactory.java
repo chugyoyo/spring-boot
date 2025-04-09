@@ -405,20 +405,20 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	public Object initializeBean(Object existingBean, String beanName) {
 		return initializeBean(beanName, existingBean, null);
 	}
-
+	/**执行所有 BeanPostProcessor 的初始化前处理（postProcessBeforeInitialization）方法**/
 	@Override
 	public Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName)
 			throws BeansException {
-
+		// 初始化结果为原始 Bean，后续会逐步被处理器修改
 		Object result = existingBean;
-		for (BeanPostProcessor processor : getBeanPostProcessors()) {
-			Object current = processor.postProcessBeforeInitialization(result, beanName);
-			if (current == null) {
-				return result;
+		for (BeanPostProcessor processor : getBeanPostProcessors()) { // 遍历所有已注册的 BeanPostProcessor（按优先级排序）
+			Object current = processor.postProcessBeforeInitialization(result, beanName); // 调用当前处理器的前置处理方法
+			if (current == null) { // 关键设计：如果处理器返回 null，立即终止处理链（Spring 5.3+ 行为）
+				return result; // 此处短路机制的设计考虑：1. 避免空指针异常传播到后续处理器 2. 允许处理器显式终止初始化流程（如检测到非法状态） 3. 与 Spring 的防御性编程风格一致
 			}
-			result = current;
+			result = current; // 用处理后的 Bean 替换之前的引用（可能是全新对象）  此处 result 可能已经被替换为代理对象，后续处理器将在代理对象上操作 典型示例：AOP 代理创建后，事务处理器仍然可以增强代理对象
 		}
-		return result;
+		return result; // 返回最终处理结果（可能已被多次包装）
 	}
 
 	@Override
@@ -584,14 +584,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
-			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean)); /// 5. 将单例工厂添加到三级缓存（singletonFactories）提前暴露对象，解决循环依赖
+			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean)); /// 5. 将单例工厂添加到三级缓存（singletonFactories）提前暴露对象，解决循环依赖（AOP问题解决？）
 		}
 		// ========== 第四阶段：Bean初始化 ==========
 		// Initialize the bean instance.
 		Object exposedObject = bean;
 		try {/// 以下是 spring 循环注入的关键，处理@Autowired/@Value/@Resource等注解，通过BeanPostProcessor进行属性注入，触发依赖bean的实例化（可能形成循环依赖）
 			populateBean(beanName, mbd, instanceWrapper); /// 【核心】属性注入阶段 三级缓存机制在这里面
-			exposedObject = initializeBean(beanName, exposedObject, mbd); //【核心】初始化阶段 （AOP代理在此阶段完成） 执行aware接口中的方法，初始化方法，完成AOP代理
+			exposedObject = initializeBean(beanName, exposedObject, mbd); ///【核心】初始化阶段 （AOP代理在此阶段完成） 执行aware接口中的方法，初始化方法，完成AOP代理
 		}
 		catch (Throwable ex) {
 			if (ex instanceof BeanCreationException && beanName.equals(((BeanCreationException) ex).getBeanName())) {
@@ -1770,50 +1770,50 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see #invokeInitMethods
 	 * @see #applyBeanPostProcessorsAfterInitialization
 	 */
-	protected Object initializeBean(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {
+	protected Object initializeBean(String beanName, Object bean, @Nullable RootBeanDefinition mbd) { //============= 阶段 1：核心 Aware 接口回调 =============//
 		if (System.getSecurityManager() != null) {
-			AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
-				invokeAwareMethods(beanName, bean);
+			AccessController.doPrivileged((PrivilegedAction<Object>) () -> { // 安全上下文环境下执行（处理权限控制）
+				invokeAwareMethods(beanName, bean); /// 1. 先执行核心 Aware 接口 // 执行 BeanName/ClassLoader/BeanFactoryAware
 				return null;
 			}, getAccessControlContext());
 		}
-		else {
-			invokeAwareMethods(beanName, bean);
+		else {  // 常规环境下直接执行
+			invokeAwareMethods(beanName, bean);  /// 1. 先执行核心 Aware 接口
 		}
-
-		Object wrappedBean = bean;
-		if (mbd == null || !mbd.isSynthetic()) {
-			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+		//============= 阶段 2：BeanPostProcessor 前置处理 =============//
+		Object wrappedBean = bean; // wrappedBean 可能被后置处理器替换（如生成代理对象）
+		if (mbd == null || !mbd.isSynthetic()) { // 跳过对合成 Bean（由 Spring 内部生成，非用户定义）的后置处理 典型场景：AOP 自动代理创建的 Bean 可能被标记为 synthetic
+			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName); /// 2. 再执行 BeanPostProcessor 前置处理 此处的处理可能修改 Bean 实例（例如生成 AOP 代理）
 		}
-
+		//============= 阶段 3：执行初始化方法 =============//
 		try {
-			invokeInitMethods(beanName, wrappedBean, mbd);
+			invokeInitMethods(beanName, wrappedBean, mbd); ///  3. 执行初始化方法（@PostConstruct、InitializingBean.afterPropertiesSet、自定义 init-method）
 		}
 		catch (Throwable ex) {
 			throw new BeanCreationException(
 					(mbd != null ? mbd.getResourceDescription() : null),
 					beanName, "Invocation of init method failed", ex);
-		}
-		if (mbd == null || !mbd.isSynthetic()) {
-			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
+		}//============= 阶段 4：BeanPostProcessor 后置处理 =============//
+		if (mbd == null || !mbd.isSynthetic()) {  // 跳过对合成 Bean（由 Spring 内部生成，非用户定义）的后置处理 典型场景：AOP 自动代理创建的 Bean 可能被标记为 synthetic
+			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName); /// 4. 执行 BeanPostProcessor 后置处理 // 最终的后处理机会（例如完成代理的最终装饰）
 		}
 
-		return wrappedBean;
+		return wrappedBean; // 返回可能被包装后的 Bean
 	}
-
+	/**执行核心 Aware 接口回调（设计上独立于其他 Aware 处理）**/
 	private void invokeAwareMethods(String beanName, Object bean) {
-		if (bean instanceof Aware) {
+		if (bean instanceof Aware) { // 严格按顺序执行（BeanName → ClassLoader → BeanFactory）
 			if (bean instanceof BeanNameAware) {
-				((BeanNameAware) bean).setBeanName(beanName);
+				((BeanNameAware) bean).setBeanName(beanName); // 注入身份标识
 			}
 			if (bean instanceof BeanClassLoaderAware) {
 				ClassLoader bcl = getBeanClassLoader();
 				if (bcl != null) {
-					((BeanClassLoaderAware) bean).setBeanClassLoader(bcl);
+					((BeanClassLoaderAware) bean).setBeanClassLoader(bcl); // 注入类加载策略
 				}
 			}
 			if (bean instanceof BeanFactoryAware) {
-				((BeanFactoryAware) bean).setBeanFactory(AbstractAutowireCapableBeanFactory.this);
+				((BeanFactoryAware) bean).setBeanFactory(AbstractAutowireCapableBeanFactory.this); // 注入 BeanFactory 实例，允许直接操作容器（谨慎使用）
 			}
 		}
 	}
@@ -1832,34 +1832,34 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	protected void invokeInitMethods(String beanName, Object bean, @Nullable RootBeanDefinition mbd)
 			throws Throwable {
-
+		//============= 阶段 1：处理 InitializingBean 接口 =============//
 		boolean isInitializingBean = (bean instanceof InitializingBean);
 		if (isInitializingBean && (mbd == null || !mbd.isExternallyManagedInitMethod("afterPropertiesSet"))) {
-			if (logger.isTraceEnabled()) {
+			if (logger.isTraceEnabled()) { // 日志跟踪（仅在 trace 级别启用）
 				logger.trace("Invoking afterPropertiesSet() on bean with name '" + beanName + "'");
-			}
+			} // 安全上下文环境处理（如 Tomcat 容器启用了 SecurityManager）
 			if (System.getSecurityManager() != null) {
 				try {
 					AccessController.doPrivileged((PrivilegedExceptionAction<Object>) () -> {
-						((InitializingBean) bean).afterPropertiesSet();
+						((InitializingBean) bean).afterPropertiesSet(); /// 核心初始化方法调用
 						return null;
 					}, getAccessControlContext());
 				}
 				catch (PrivilegedActionException pae) {
-					throw pae.getException();
+					throw pae.getException();  // 解包真实异常
 				}
 			}
 			else {
-				((InitializingBean) bean).afterPropertiesSet();
+				((InitializingBean) bean).afterPropertiesSet(); // 常规环境直接调用
 			}
 		}
-
+		//============= 阶段 2：处理自定义 init-method =============//
 		if (mbd != null && bean.getClass() != NullBean.class) {
 			String initMethodName = mbd.getInitMethodName();
-			if (StringUtils.hasLength(initMethodName) &&
-					!(isInitializingBean && "afterPropertiesSet".equals(initMethodName)) &&
-					!mbd.isExternallyManagedInitMethod(initMethodName)) {
-				invokeCustomInitMethod(beanName, bean, mbd);
+			if (StringUtils.hasLength(initMethodName) && // 存在配置的 init 方法
+					!(isInitializingBean && "afterPropertiesSet".equals(initMethodName)) && // 避免重复执行
+					!mbd.isExternallyManagedInitMethod(initMethodName)) { // 非外部管理的方法
+				invokeCustomInitMethod(beanName, bean, mbd); /// 通过反射调用自定义初始化方法
 			}
 		}
 	}
@@ -1873,54 +1873,54 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	protected void invokeCustomInitMethod(String beanName, Object bean, RootBeanDefinition mbd)
 			throws Throwable {
-
+		//============= 阶段 1：方法元数据准备 =============//
 		String initMethodName = mbd.getInitMethodName();
-		Assert.state(initMethodName != null, "No init method set");
-		Method initMethod = (mbd.isNonPublicAccessAllowed() ?
-				BeanUtils.findMethod(bean.getClass(), initMethodName) :
-				ClassUtils.getMethodIfAvailable(bean.getClass(), initMethodName));
-
+		Assert.state(initMethodName != null, "No init method set"); // 防御性校验
+		Method initMethod = (mbd.isNonPublicAccessAllowed() ? // 根据是否允许访问非 public 方法选择查找策略
+				BeanUtils.findMethod(bean.getClass(), initMethodName) : // 查找所有可见性方法
+				ClassUtils.getMethodIfAvailable(bean.getClass(), initMethodName)); // 仅 public 方法
+		//============= 阶段 2：方法存在性校验 =============//
 		if (initMethod == null) {
-			if (mbd.isEnforceInitMethod()) {
+			if (mbd.isEnforceInitMethod()) { // 严格模式要求必须存在该方法
 				throw new BeanDefinitionValidationException("Could not find an init method named '" +
 						initMethodName + "' on bean with name '" + beanName + "'");
 			}
-			else {
+			else { // 宽松模式仅记录日志
 				if (logger.isTraceEnabled()) {
 					logger.trace("No default init method named '" + initMethodName +
 							"' found on bean with name '" + beanName + "'");
 				}
 				// Ignore non-existent default lifecycle methods.
-				return;
+				return; // 安全退出
 			}
 		}
-
+		//============= 阶段 3：方法调用准备 =============//
 		if (logger.isTraceEnabled()) {
 			logger.trace("Invoking init method  '" + initMethodName + "' on bean with name '" + beanName + "'");
-		}
+		} // 优先获取接口中的默认方法（Java 8+ 特性兼容）
 		Method methodToInvoke = ClassUtils.getInterfaceMethodIfPossible(initMethod);
-
-		if (System.getSecurityManager() != null) {
+		//============= 阶段 4：安全执行 =============//
+		if (System.getSecurityManager() != null) { // 特权操作：提升权限以访问非 public 方法
 			AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
-				ReflectionUtils.makeAccessible(methodToInvoke);
+				ReflectionUtils.makeAccessible(methodToInvoke); // 突破 Java 访问限制
 				return null;
 			});
-			try {
+			try { // 在特权上下文中执行方法调用
 				AccessController.doPrivileged((PrivilegedExceptionAction<Object>)
 						() -> methodToInvoke.invoke(bean), getAccessControlContext());
 			}
 			catch (PrivilegedActionException pae) {
 				InvocationTargetException ex = (InvocationTargetException) pae.getException();
-				throw ex.getTargetException();
+				throw ex.getTargetException(); // 解包真实异常（保留原始堆栈）
 			}
 		}
 		else {
 			try {
-				ReflectionUtils.makeAccessible(methodToInvoke);
-				methodToInvoke.invoke(bean);
+				ReflectionUtils.makeAccessible(methodToInvoke);// 常规环境访问性处理
+				methodToInvoke.invoke(bean);// 反射调用
 			}
 			catch (InvocationTargetException ex) {
-				throw ex.getTargetException();
+				throw ex.getTargetException(); // 抛出业务逻辑的真实异常（而非反射异常）
 			}
 		}
 	}

@@ -236,44 +236,44 @@ class DisposableBeanAdapter implements DisposableBean, Runnable, Serializable {
 	}
 
 	@Override
-	public void destroy() {
+	public void destroy() { //============= 阶段 1：执行 DestructionAwareBeanPostProcessor 前置处理 =============//
 		if (!CollectionUtils.isEmpty(this.beanPostProcessors)) {
-			for (DestructionAwareBeanPostProcessor processor : this.beanPostProcessors) {
-				processor.postProcessBeforeDestruction(this.bean, this.beanName);
+			for (DestructionAwareBeanPostProcessor processor : this.beanPostProcessors) { // 遍历所有 DestructionAwareBeanPostProcessor 实现
+				processor.postProcessBeforeDestruction(this.bean, this.beanName); // 调用销毁前的后置处理（如资源预释放、状态保存）
 			}
 		}
-
-		if (this.invokeDisposableBean) {
+		//============= 阶段 2：执行 DisposableBean 接口的 destroy() 方法 =============//
+		if (this.invokeDisposableBean) { // 检查是否需调用接口方法
 			if (logger.isTraceEnabled()) {
 				logger.trace("Invoking destroy() on bean with name '" + this.beanName + "'");
 			}
 			try {
-				if (System.getSecurityManager() != null) {
+				if (System.getSecurityManager() != null) { // 安全上下文处理（如 Tomcat 容器启用 SecurityManager）
 					AccessController.doPrivileged((PrivilegedExceptionAction<Object>) () -> {
-						((DisposableBean) this.bean).destroy();
+						((DisposableBean) this.bean).destroy(); // 实际方法调用
 						return null;
-					}, this.acc);
+					}, this.acc); // 使用容器的 AccessControlContext
 				}
 				else {
 					((DisposableBean) this.bean).destroy();
 				}
 			}
-			catch (Throwable ex) {
+			catch (Throwable ex) { // 异常隔离：记录错误但继续执行后续销毁逻辑
 				String msg = "Invocation of destroy method failed on bean with name '" + this.beanName + "'";
 				if (logger.isDebugEnabled()) {
-					logger.warn(msg, ex);
+					logger.warn(msg, ex); // 调试模式打印完整堆栈
 				}
 				else {
-					logger.warn(msg + ": " + ex);
+					logger.warn(msg + ": " + ex); // 生产环境简化日志
 				}
 			}
 		}
-
+		//============= 阶段 3：执行自定义销毁方法 =============//
 		if (this.destroyMethod != null) {
-			invokeCustomDestroyMethod(this.destroyMethod);
+			invokeCustomDestroyMethod(this.destroyMethod); // 存在直接指定的销毁方法
 		}
-		else if (this.destroyMethodName != null) {
-			Method methodToInvoke = determineDestroyMethod(this.destroyMethodName);
+		else if (this.destroyMethodName != null) { // 通过方法名查找
+			Method methodToInvoke = determineDestroyMethod(this.destroyMethodName); // 确定目标方法（考虑接口默认方法）
 			if (methodToInvoke != null) {
 				invokeCustomDestroyMethod(ClassUtils.getInterfaceMethodIfPossible(methodToInvoke));
 			}
