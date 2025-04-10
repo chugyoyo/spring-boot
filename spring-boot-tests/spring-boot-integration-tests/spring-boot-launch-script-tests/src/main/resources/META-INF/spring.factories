@@ -1,2 +1,2 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  org.springframework.boot.launchscript.config.LaunchVerificationConfig
+#org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+#  org.springframework.boot.launchscript.config.LaunchVerificationConfig

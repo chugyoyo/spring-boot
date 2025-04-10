@@ -510,44 +510,44 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	private String[] doGetBeanNamesForType(ResolvableType type, boolean includeNonSingletons, boolean allowEagerInit) {
 		List<String> result = new ArrayList<>();
 
-		// Check all bean definitions.
+		// Check all bean definitions. // 第一阶段：遍历所有 Bean 定义（从 beanDefinitionNames）
 		for (String beanName : this.beanDefinitionNames) {
 			// Only consider bean as eligible if the bean name is not defined as alias for some other bean.
-			if (!isAlias(beanName)) {
+			if (!isAlias(beanName)) { // 跳过别名（只处理原始 Bean 名称）
 				try {
 					RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
-					// Only check bean definition if it is complete.
+					// Only check bean definition if it is complete. // 条件过滤：非抽象 Bean，且满足初始化条件
 					if (!mbd.isAbstract() && (allowEagerInit ||
 							(mbd.hasBeanClass() || !mbd.isLazyInit() || isAllowEagerClassLoading()) &&
 									!requiresEagerInitForType(mbd.getFactoryBeanName()))) {
 						boolean isFactoryBean = isFactoryBean(beanName, mbd);
 						BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
 						boolean matchFound = false;
-						boolean allowFactoryBeanInit = (allowEagerInit || containsSingleton(beanName));
-						boolean isNonLazyDecorated = (dbd != null && !mbd.isLazyInit());
-						if (!isFactoryBean) {
+						boolean allowFactoryBeanInit = (allowEagerInit || containsSingleton(beanName)); // 判断是否允许初始化 FactoryBean
+						boolean isNonLazyDecorated = (dbd != null && !mbd.isLazyInit()); // 判断是否为非延迟装饰 Bean
+						if (!isFactoryBean) { // 处理普通 Bean
 							if (includeNonSingletons || isSingleton(beanName, mbd, dbd)) {
-								matchFound = isTypeMatch(beanName, type, allowFactoryBeanInit);
+								matchFound = isTypeMatch(beanName, type, allowFactoryBeanInit); /// 类型匹配逻辑
 							}
 						}
-						else {
+						else { // 处理 FactoryBean
 							if (includeNonSingletons || isNonLazyDecorated ||
-									(allowFactoryBeanInit && isSingleton(beanName, mbd, dbd))) {
+									(allowFactoryBeanInit && isSingleton(beanName, mbd, dbd))) {  // 匹配 FactoryBean 创建的对象
 								matchFound = isTypeMatch(beanName, type, allowFactoryBeanInit);
 							}
-							if (!matchFound) {
+							if (!matchFound) { // 如果未匹配，尝试匹配 FactoryBean 本身
 								// In case of FactoryBean, try to match FactoryBean instance itself next.
 								beanName = FACTORY_BEAN_PREFIX + beanName;
 								matchFound = isTypeMatch(beanName, type, allowFactoryBeanInit);
 							}
 						}
-						if (matchFound) {
+						if (matchFound) { // 记录匹配的 Bean 名称
 							result.add(beanName);
 						}
 					}
 				}
 				catch (CannotLoadBeanClassException | BeanDefinitionStoreException ex) {
-					if (allowEagerInit) {
+					if (allowEagerInit) {  // 处理类加载失败或元数据解析异常（仅记录跟踪日志）
 						throw ex;
 					}
 					// Probably a placeholder: let's ignore it for type matching purposes.
@@ -556,33 +556,33 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							LogMessage.format("Ignoring unresolvable metadata in bean definition '%s'", beanName));
 					logger.trace(message, ex);
 					// Register exception, in case the bean was accidentally unresolvable.
-					onSuppressedException(ex);
+					onSuppressedException(ex); // 登记被抑制的异常
 				}
 				catch (NoSuchBeanDefinitionException ex) {
-					// Bean definition got removed while we were iterating -> ignore.
+					// Bean definition got removed while we were iterating -> ignore. // Bean 定义被并发移除时忽略
 				}
 			}
 		}
 
-		// Check manually registered singletons too.
+		// Check manually registered singletons too. // 第二阶段：处理手动注册的单例 Bean（从 manualSingletonNames）
 		for (String beanName : this.manualSingletonNames) {
 			try {
 				// In case of FactoryBean, match object created by FactoryBean.
-				if (isFactoryBean(beanName)) {
+				if (isFactoryBean(beanName)) { // 处理 FactoryBean 创建的对象
 					if ((includeNonSingletons || isSingleton(beanName)) && isTypeMatch(beanName, type)) {
 						result.add(beanName);
 						// Match found for this bean: do not match FactoryBean itself anymore.
-						continue;
+						continue; // 已匹配对象，跳过 FactoryBean 本身检查
 					}
 					// In case of FactoryBean, try to match FactoryBean itself next.
-					beanName = FACTORY_BEAN_PREFIX + beanName;
+					beanName = FACTORY_BEAN_PREFIX + beanName; // 尝试匹配 FactoryBean 本身
 				}
 				// Match raw bean instance (might be raw FactoryBean).
-				if (isTypeMatch(beanName, type)) {
+				if (isTypeMatch(beanName, type)) { // 匹配原始 Bean 实例
 					result.add(beanName);
 				}
 			}
-			catch (NoSuchBeanDefinitionException ex) {
+			catch (NoSuchBeanDefinitionException ex) { // 处理循环引用等异常场景（记录跟踪日志）
 				// Shouldn't happen - probably a result of circular reference resolution...
 				logger.trace(LogMessage.format(
 						"Failed to check manually registered singleton with name '%s'", beanName), ex);
@@ -1282,7 +1282,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 				autowiredBeanName = determineAutowireCandidate(matchingBeans, descriptor); // 7.1 确定最优候选（处理@Primary/@Priority/bean名称匹配）
 				if (autowiredBeanName == null) {
 					if (isRequired(descriptor) || !indicatesMultipleBeans(type)) {
-						return descriptor.resolveNotUnique(descriptor.getResolvableType(), matchingBeans); // 依赖不唯一，冲突// 7.2 抛出经典的"No unique bean"异常 expected single matching bean but found
+						return descriptor.resolveNotUnique(descriptor.getResolvableType(), matchingBeans); /// 依赖不唯一，冲突// 7.2 抛出经典的"No unique bean"异常 expected single matching bean but found
 					}
 					else {
 						// In case of an optional Collection/Map, silently ignore a non-unique case:

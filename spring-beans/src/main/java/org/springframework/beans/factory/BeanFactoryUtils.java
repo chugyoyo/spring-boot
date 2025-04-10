@@ -262,16 +262,16 @@ public abstract class BeanFactoryUtils {
 			ListableBeanFactory lbf, Class<?> type, boolean includeNonSingletons, boolean allowEagerInit) {
 
 		Assert.notNull(lbf, "ListableBeanFactory must not be null");
-		String[] result = lbf.getBeanNamesForType(type, includeNonSingletons, allowEagerInit);
-		if (lbf instanceof HierarchicalBeanFactory) {
+		String[] result = lbf.getBeanNamesForType(type, includeNonSingletons, allowEagerInit); // 获取当前工厂中指定类型的bean名称
+		if (lbf instanceof HierarchicalBeanFactory) { // 检查当前工厂是否为分层bean工厂
 			HierarchicalBeanFactory hbf = (HierarchicalBeanFactory) lbf;
-			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) {
+			if (hbf.getParentBeanFactory() instanceof ListableBeanFactory) { // 检查父工厂是否为可列出的bean工厂
 				String[] parentResult = beanNamesForTypeIncludingAncestors(
-						(ListableBeanFactory) hbf.getParentBeanFactory(), type, includeNonSingletons, allowEagerInit);
-				result = mergeNamesWithParent(result, parentResult, hbf);
+						(ListableBeanFactory) hbf.getParentBeanFactory(), type, includeNonSingletons, allowEagerInit); // 递归获取父工厂中指定类型的bean名称
+				result = mergeNamesWithParent(result, parentResult, hbf); // 合并当前工厂和父工厂的bean名称
 			}
 		}
-		return result;
+		return result; 		// 返回合并后的bean名称数组
 	}
 
 	/**

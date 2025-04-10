@@ -248,8 +248,8 @@ public class ResolvableType implements Serializable {
 	 * @since 4.2
 	 * @see #isAssignableFrom(Class)
 	 */
-	public boolean isInstance(@Nullable Object obj) {
-		return (obj != null && isAssignableFrom(obj.getClass()));
+	public boolean isInstance(@Nullable Object obj) { /**{@link ResolvableType#isAssignableFrom(Class)}**/
+		return (obj != null && isAssignableFrom(obj.getClass())); // 此“可解析类型 this” 是从 “目标对象 obj” 赋值（也就是多态的赋值）
 	}
 
 	/**
@@ -1030,7 +1030,7 @@ public class ResolvableType implements Serializable {
 			}
 			@Override
 			public boolean isAssignableFrom(Class<?> other) {
-				return (clazz == null || ClassUtils.isAssignable(clazz, other));
+				return (clazz == null || ClassUtils.isAssignable(clazz, other)); // 可赋值性
 			}
 			@Override
 			public boolean isAssignableFrom(ResolvableType other) {

@@ -351,32 +351,32 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 		}
 		return metadata;
 	}
-
+	/**构建指定类中所有资源注入（@Resource、@WebServiceRef、@EJB）的元数据**/
 	private InjectionMetadata buildResourceMetadata(final Class<?> clazz) {
-		if (!AnnotationUtils.isCandidateClass(clazz, resourceAnnotationTypes)) {
+		if (!AnnotationUtils.isCandidateClass(clazz, resourceAnnotationTypes)) { // 1. 快速失败检查：如果类上不可能有目标注解，直接返回空元数据
 			return InjectionMetadata.EMPTY;
 		}
 
 		List<InjectionMetadata.InjectedElement> elements = new ArrayList<>();
-		Class<?> targetClass = clazz;
+		Class<?> targetClass = clazz; // 从当前类开始扫描
 
 		do {
 			final List<InjectionMetadata.InjectedElement> currElements = new ArrayList<>();
-
+			// 2. 处理字段上的注解
 			ReflectionUtils.doWithLocalFields(targetClass, field -> {
-				if (webServiceRefClass != null && field.isAnnotationPresent(webServiceRefClass)) {
-					if (Modifier.isStatic(field.getModifiers())) {
+				if (webServiceRefClass != null && field.isAnnotationPresent(webServiceRefClass)) { // 2.1 处理 @WebServiceRef 注解字段
+					if (Modifier.isStatic(field.getModifiers())) { // 静态字段检查
 						throw new IllegalStateException("@WebServiceRef annotation is not supported on static fields");
 					}
 					currElements.add(new WebServiceRefElement(field, field, null));
 				}
-				else if (ejbClass != null && field.isAnnotationPresent(ejbClass)) {
+				else if (ejbClass != null && field.isAnnotationPresent(ejbClass)) { // 2.2 处理 @EJB 注解字段
 					if (Modifier.isStatic(field.getModifiers())) {
 						throw new IllegalStateException("@EJB annotation is not supported on static fields");
 					}
 					currElements.add(new EjbRefElement(field, field, null));
 				}
-				else if (field.isAnnotationPresent(Resource.class)) {
+				else if (field.isAnnotationPresent(Resource.class)) { // 2.3 处理 @Resource 注解字段
 					if (Modifier.isStatic(field.getModifiers())) {
 						throw new IllegalStateException("@Resource annotation is not supported on static fields");
 					}
@@ -385,14 +385,14 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 					}
 				}
 			});
-
+			// 3. 处理方法上的注解
 			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
 				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
-				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
+				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) { // 3.1 桥接方法过滤
 					return;
 				}
-				if (method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
-					if (webServiceRefClass != null && bridgedMethod.isAnnotationPresent(webServiceRefClass)) {
+				if (method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) { // 3.2 仅处理类层级中最具体的方法
+					if (webServiceRefClass != null && bridgedMethod.isAnnotationPresent(webServiceRefClass)) { // 3.2.1 处理 @WebServiceRef 注解方法
 						if (Modifier.isStatic(method.getModifiers())) {
 							throw new IllegalStateException("@WebServiceRef annotation is not supported on static methods");
 						}
@@ -402,7 +402,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 						PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
 						currElements.add(new WebServiceRefElement(method, bridgedMethod, pd));
 					}
-					else if (ejbClass != null && bridgedMethod.isAnnotationPresent(ejbClass)) {
+					else if (ejbClass != null && bridgedMethod.isAnnotationPresent(ejbClass)) { // 3.2.2 处理 @EJB 注解方法
 						if (Modifier.isStatic(method.getModifiers())) {
 							throw new IllegalStateException("@EJB annotation is not supported on static methods");
 						}
@@ -412,7 +412,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 						PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
 						currElements.add(new EjbRefElement(method, bridgedMethod, pd));
 					}
-					else if (bridgedMethod.isAnnotationPresent(Resource.class)) {
+					else if (bridgedMethod.isAnnotationPresent(Resource.class)) { // 3.2.3 处理 @Resource 注解方法
 						if (Modifier.isStatic(method.getModifiers())) {
 							throw new IllegalStateException("@Resource annotation is not supported on static methods");
 						}
@@ -428,10 +428,10 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 				}
 			});
 
-			elements.addAll(0, currElements);
+			elements.addAll(0, currElements); // 4. 将当前类元素插入到列表头部（保证父类元素先处理）
 			targetClass = targetClass.getSuperclass();
 		}
-		while (targetClass != null && targetClass != Object.class);
+		while (targetClass != null && targetClass != Object.class); // 5. 递归扫描父类
 
 		return InjectionMetadata.forElements(elements, clazz);
 	}
@@ -509,35 +509,35 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 	protected Object autowireResource(BeanFactory factory, LookupElement element, @Nullable String requestingBeanName)
 			throws NoSuchBeanDefinitionException {
 
-		Object resource;
-		Set<String> autowiredBeanNames;
-		String name = element.name;
+		Object resource; // 最终要注入的资源对象
+		Set<String> autowiredBeanNames; // 被自动装配的 Bean 名称集合（用于依赖关系追踪）
+		String name = element.name; // 资源名称（来自 @Resource 的 name 属性或字段名）
 
-		if (factory instanceof AutowireCapableBeanFactory) {
+		if (factory instanceof AutowireCapableBeanFactory) { // 分支 1：支持自动装配的 BeanFactory（如 DefaultListableBeanFactory）
 			AutowireCapableBeanFactory beanFactory = (AutowireCapableBeanFactory) factory;
 			DependencyDescriptor descriptor = element.getDependencyDescriptor();
-			if (this.fallbackToDefaultTypeMatch && element.isDefaultName && !factory.containsBean(name)) {
+			if (this.fallbackToDefaultTypeMatch && element.isDefaultName && !factory.containsBean(name)) { // 场景 1：按名称查找失败时回退到类型匹配
 				autowiredBeanNames = new LinkedHashSet<>();
-				resource = beanFactory.resolveDependency(descriptor, requestingBeanName, autowiredBeanNames, null);
+				resource = beanFactory.resolveDependency(descriptor, requestingBeanName, autowiredBeanNames, null); /// 按类型解析依赖（可能触发多 Bean 冲突检查）
 				if (resource == null) {
 					throw new NoSuchBeanDefinitionException(element.getLookupType(), "No resolvable resource object");
 				}
 			}
-			else {
-				resource = beanFactory.resolveBeanByName(name, descriptor); /// 这里要创建bean，递归
-				autowiredBeanNames = Collections.singleton(name);
+			else { // 场景 2：直接按名称解析
+				resource = beanFactory.resolveBeanByName(name, descriptor); /// 按名称精确查找（可能触发 Bean 的创建，导致递归调用）
+				autowiredBeanNames = Collections.singleton(name); // 单例集合
 			}
 		}
-		else {
-			resource = factory.getBean(name, element.lookupType);
+		else { // 分支 2：普通 BeanFactory（按名称直接获取）
+			resource = factory.getBean(name, element.lookupType); // 直接通过名称和类型获取 Bean（无自动装配能力）
 			autowiredBeanNames = Collections.singleton(name);
 		}
-
+		// 注册依赖关系（用于维护 Bean 销毁顺序）
 		if (factory instanceof ConfigurableBeanFactory) {
 			ConfigurableBeanFactory beanFactory = (ConfigurableBeanFactory) factory;
 			for (String autowiredBeanName : autowiredBeanNames) {
 				if (requestingBeanName != null && beanFactory.containsBean(autowiredBeanName)) {
-					beanFactory.registerDependentBean(autowiredBeanName, requestingBeanName); // 创建完成后，注册bean依赖关系，双向的
+					beanFactory.registerDependentBean(autowiredBeanName, requestingBeanName); // 创建完成后，记录依赖关系（如 "A 依赖 B"，销毁时先销毁 A）
 				}
 			}
 		}
