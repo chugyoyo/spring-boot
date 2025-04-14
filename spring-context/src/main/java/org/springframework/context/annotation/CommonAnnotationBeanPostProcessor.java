@@ -519,7 +519,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			if (this.fallbackToDefaultTypeMatch && element.isDefaultName && !factory.containsBean(name)) { // 场景 1：按名称查找失败时回退到类型匹配
 				autowiredBeanNames = new LinkedHashSet<>();
 				resource = beanFactory.resolveDependency(descriptor, requestingBeanName, autowiredBeanNames, null); /// 按类型解析依赖（可能触发多 Bean 冲突检查）
-				if (resource == null) {
+				if (resource == null) { // 没有找到则抛出异常（此时名称、类型都没有找到）
 					throw new NoSuchBeanDefinitionException(element.getLookupType(), "No resolvable resource object");
 				}
 			}
