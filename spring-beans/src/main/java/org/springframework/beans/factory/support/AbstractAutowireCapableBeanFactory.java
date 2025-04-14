@@ -420,20 +420,20 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 		return result; // 返回最终处理结果（可能已被多次包装）
 	}
-
+	/**责任链模式、中断机制、Bean的增强/替换**/
 	@Override
 	public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName)
 			throws BeansException {
-
+		// 1. 初始化结果引用：保存最终处理后的 Bean 实例
 		Object result = existingBean;
-		for (BeanPostProcessor processor : getBeanPostProcessors()) {
-			Object current = processor.postProcessAfterInitialization(result, beanName);
-			if (current == null) {
+		for (BeanPostProcessor processor : getBeanPostProcessors()) { // 2. 遍历所有 BeanPostProcessor（按优先级顺序）
+			Object current = processor.postProcessAfterInitialization(result, beanName); /// 3. 调用当前处理器的 postProcessAfterInitialization 方法
+			if (current == null) { // 4. 如果处理器返回 null，终止后续处理，直接返回之前的 result
 				return result;
 			}
-			result = current;
+			result = current; // 5. 用处理后的结果覆盖之前的引用，继续传递
 		}
-		return result;
+		return result; // 6. 返回最终处理后的 Bean 实例（可能是原始对象或代理对象）
 	}
 
 	@Override

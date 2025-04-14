@@ -27,7 +27,7 @@ public class LaunchScriptTestApplication {
 
 	public static void main(String[] args) {
 		ConfigurableApplicationContext context = SpringApplication.run(LaunchScriptTestApplication.class, args);
-		context.close(); // 主动触发关闭 （测试生命周期）
+//		context.close(); // 主动触发关闭 （测试生命周期）
 	}
 
 }

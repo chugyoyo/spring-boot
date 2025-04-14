@@ -162,56 +162,56 @@ class CglibAopProxy implements AopProxy, Serializable {
 		}
 
 		try {
-			Class<?> rootClass = this.advised.getTargetClass();
+			Class<?> rootClass = this.advised.getTargetClass(); // 1. 获取目标类并校验
 			Assert.state(rootClass != null, "Target class must be available for creating a CGLIB proxy");
-
+			// 2. 处理 CGLIB 多层代理场景
 			Class<?> proxySuperClass = rootClass;
-			if (rootClass.getName().contains(ClassUtils.CGLIB_CLASS_SEPARATOR)) {
-				proxySuperClass = rootClass.getSuperclass();
-				Class<?>[] additionalInterfaces = rootClass.getInterfaces();
+			if (rootClass.getName().contains(ClassUtils.CGLIB_CLASS_SEPARATOR)) { // 判断是否已是 CGLIB 代理类
+				proxySuperClass = rootClass.getSuperclass(); // 如果是 CGLIB 代理类，取其父类作为代理基类
+				Class<?>[] additionalInterfaces = rootClass.getInterfaces(); // 将原代理类的接口继承到新代理配置中
 				for (Class<?> additionalInterface : additionalInterfaces) {
 					this.advised.addInterface(additionalInterface);
 				}
 			}
 
 			// Validate the class, writing log messages as necessary.
-			validateClassIfNecessary(proxySuperClass, classLoader);
+			validateClassIfNecessary(proxySuperClass, classLoader); // 3. 类合法性校验（如 final 修饰符检查）
 
 			// Configure CGLIB Enhancer...
-			Enhancer enhancer = createEnhancer();
+			Enhancer enhancer = createEnhancer(); // 4. 配置 CGLIB Enhancer（核心代理生成器）
 			if (classLoader != null) {
-				enhancer.setClassLoader(classLoader);
+				enhancer.setClassLoader(classLoader); // 4.1 设置类加载器
 				if (classLoader instanceof SmartClassLoader &&
 						((SmartClassLoader) classLoader).isClassReloadable(proxySuperClass)) {
-					enhancer.setUseCache(false);
+					enhancer.setUseCache(false); // 动态类加载器优化：禁用缓存确保热加载生效
 				}
 			}
-			enhancer.setSuperclass(proxySuperClass);
-			enhancer.setInterfaces(AopProxyUtils.completeProxiedInterfaces(this.advised));
-			enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
-			enhancer.setStrategy(new ClassLoaderAwareGeneratorStrategy(classLoader));
+			enhancer.setSuperclass(proxySuperClass); // 4.2 设置父类（代理类将继承此类）
+			enhancer.setInterfaces(AopProxyUtils.completeProxiedInterfaces(this.advised)); // 4.3 设置代理接口（合并用户指定的接口和 SpringProxy 标记接口）
+			enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE); // 4.4 命名策略（生成类似 UserService$$EnhancerBySpringCGLIB$$12345a 的类名）
+			enhancer.setStrategy(new ClassLoaderAwareGeneratorStrategy(classLoader)); // 4.5 生成策略（处理类加载器上下文）
 
-			Callback[] callbacks = getCallbacks(rootClass);
+			Callback[] callbacks = getCallbacks(rootClass); // 5. 创建回调链（包含拦截器、目标方法调用等）
 			Class<?>[] types = new Class<?>[callbacks.length];
 			for (int x = 0; x < types.length; x++) {
-				types[x] = callbacks[x].getClass();
+				types[x] = callbacks[x].getClass(); // 5.1 获取回调类型数组（用于后续CallbackFilter匹配）
 			}
 			// fixedInterceptorMap only populated at this point, after getCallbacks call above
-			enhancer.setCallbackFilter(new ProxyCallbackFilter(
+			enhancer.setCallbackFilter(new ProxyCallbackFilter( // 6. 设置回调过滤器（决定不同方法使用哪个Callback）
 					this.advised.getConfigurationOnlyCopy(), this.fixedInterceptorMap, this.fixedInterceptorOffset));
 			enhancer.setCallbackTypes(types);
 
 			// Generate the proxy class and create a proxy instance.
-			return createProxyClassAndInstance(enhancer, callbacks);
+			return createProxyClassAndInstance(enhancer, callbacks); /// 7. 生成代理类并创建实例（核心生成逻辑）
 		}
 		catch (CodeGenerationException | IllegalArgumentException ex) {
 			throw new AopConfigException("Could not generate CGLIB subclass of " + this.advised.getTargetClass() +
 					": Common causes of this problem include using a final class or a non-visible class",
-					ex);
+					ex); // 典型异常：目标类是 final 类或非可见类
 		}
 		catch (Throwable ex) {
 			// TargetSource.getTarget() failed
-			throw new AopConfigException("Unexpected AOP exception", ex);
+			throw new AopConfigException("Unexpected AOP exception", ex); // 其他未知异常（如目标对象获取失败）
 		}
 	}
 
