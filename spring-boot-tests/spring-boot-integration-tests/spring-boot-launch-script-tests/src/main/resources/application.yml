@@ -1,4 +1,8 @@
-logging:
-  level:
-#    org.springframework.beans: TRACE
+logging.level:
     org.springframework.context: DEBUG
+
+task:
+  pool:
+    core-size: 2
+    max-size: 5
+    queue-capacity: 10
