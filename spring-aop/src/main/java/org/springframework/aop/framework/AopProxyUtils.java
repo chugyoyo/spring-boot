@@ -99,7 +99,7 @@ public abstract class AopProxyUtils {
 	 * @see Advised
 	 */
 	public static Class<?>[] completeProxiedInterfaces(AdvisedSupport advised) {
-		return completeProxiedInterfaces(advised, false);
+		return completeProxiedInterfaces(advised, false); // 完善代理接口配置，合并用户指定的接口与Spring内部要求的接口
 	}
 
 	/**
@@ -115,25 +115,25 @@ public abstract class AopProxyUtils {
 	 * @see Advised
 	 * @see DecoratingProxy
 	 */
-	static Class<?>[] completeProxiedInterfaces(AdvisedSupport advised, boolean decoratingProxy) {
-		Class<?>[] specifiedInterfaces = advised.getProxiedInterfaces();
-		if (specifiedInterfaces.length == 0) {
+	static Class<?>[] completeProxiedInterfaces(AdvisedSupport advised, boolean decoratingProxy) { // 完善代理接口配置，合并用户指定的接口与Spring内部要求的接口
+		Class<?>[] specifiedInterfaces = advised.getProxiedInterfaces(); // 1. 获取用户显式指定的代理接口
+		if (specifiedInterfaces.length == 0) { // 2. 用户未指定接口时的自动推断逻辑
 			// No user-specified interfaces: check whether target class is an interface.
 			Class<?> targetClass = advised.getTargetClass();
 			if (targetClass != null) {
-				if (targetClass.isInterface()) {
+				if (targetClass.isInterface()) { // 2.1 目标类本身是接口 → 直接代理该接口
 					advised.setInterfaces(targetClass);
 				}
-				else if (Proxy.isProxyClass(targetClass)) {
+				else if (Proxy.isProxyClass(targetClass)) { // 2.2 目标类是JDK代理类 → 继承其所有接口
 					advised.setInterfaces(targetClass.getInterfaces());
 				}
-				specifiedInterfaces = advised.getProxiedInterfaces();
+				specifiedInterfaces = advised.getProxiedInterfaces(); // 更新已处理的接口列表
 			}
-		}
-		boolean addSpringProxy = !advised.isInterfaceProxied(SpringProxy.class);
-		boolean addAdvised = !advised.isOpaque() && !advised.isInterfaceProxied(Advised.class);
-		boolean addDecoratingProxy = (decoratingProxy && !advised.isInterfaceProxied(DecoratingProxy.class));
-		int nonUserIfcCount = 0;
+		} // 3. 判断需要添加的Spring内部接口
+		boolean addSpringProxy = !advised.isInterfaceProxied(SpringProxy.class); // 添加标记接口
+		boolean addAdvised = !advised.isOpaque() && !advised.isInterfaceProxied(Advised.class); // 添加配置访问接口
+		boolean addDecoratingProxy = (decoratingProxy && !advised.isInterfaceProxied(DecoratingProxy.class)); // 添加装饰代理接口
+		int nonUserIfcCount = 0; // 4. 计算需要添加的内部接口数量
 		if (addSpringProxy) {
 			nonUserIfcCount++;
 		}
@@ -143,19 +143,19 @@ public abstract class AopProxyUtils {
 		if (addDecoratingProxy) {
 			nonUserIfcCount++;
 		}
-		Class<?>[] proxiedInterfaces = new Class<?>[specifiedInterfaces.length + nonUserIfcCount];
-		System.arraycopy(specifiedInterfaces, 0, proxiedInterfaces, 0, specifiedInterfaces.length);
+		Class<?>[] proxiedInterfaces = new Class<?>[specifiedInterfaces.length + nonUserIfcCount]; // 5. 创建最终接口数组（用户接口 + 内部接口）
+		System.arraycopy(specifiedInterfaces, 0, proxiedInterfaces, 0, specifiedInterfaces.length); // 6. 合并接口的优先级顺序：用户接口在前，内部接口在后
 		int index = specifiedInterfaces.length;
-		if (addSpringProxy) {
-			proxiedInterfaces[index] = SpringProxy.class;
+		if (addSpringProxy) { // 7. 按固定顺序添加Spring内部接口
+			proxiedInterfaces[index] = SpringProxy.class; // 标记接口，标识这是Spring代理对象
 			index++;
 		}
 		if (addAdvised) {
-			proxiedInterfaces[index] = Advised.class;
+			proxiedInterfaces[index] = Advised.class; // 提供访问AOP配置的能力
 			index++;
 		}
 		if (addDecoratingProxy) {
-			proxiedInterfaces[index] = DecoratingProxy.class;
+			proxiedInterfaces[index] = DecoratingProxy.class; // 支持获取最终目标类（用于嵌套代理场景）
 		}
 		return proxiedInterfaces;
 	}

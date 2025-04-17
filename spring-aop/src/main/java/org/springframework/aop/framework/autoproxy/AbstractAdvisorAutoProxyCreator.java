@@ -72,14 +72,14 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 
 	@Override
 	@Nullable
-	protected Object[] getAdvicesAndAdvisorsForBean(
+	protected Object[] getAdvicesAndAdvisorsForBean( // 获取适用于当前 Bean 的 Advisor（增强逻辑）
 			Class<?> beanClass, String beanName, @Nullable TargetSource targetSource) {
 
-		List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName);
+		List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName); // 查找所有候选的 Advisor（包括 @Aspect 定义的切面）
 		if (advisors.isEmpty()) {
-			return DO_NOT_PROXY;
+			return DO_NOT_PROXY; // 标记无需代理
 		}
-		return advisors.toArray();
+		return advisors.toArray(); // 返回匹配的 Advisor 数组
 	}
 
 	/**
@@ -93,9 +93,9 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #extendAdvisors
 	 */
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
-		List<Advisor> candidateAdvisors = findCandidateAdvisors();
-		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
-		extendAdvisors(eligibleAdvisors);
+		List<Advisor> candidateAdvisors = findCandidateAdvisors(); // 获取所有候选 Advisor（包括自动代理的 @Aspect）
+		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName); /// 筛选适用于当前 Bean 的 Advisor
+		extendAdvisors(eligibleAdvisors); // 扩展点：允许子类对 Advisor 排序
 		if (!eligibleAdvisors.isEmpty()) {
 			eligibleAdvisors = sortAdvisors(eligibleAdvisors);
 		}
@@ -123,9 +123,9 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	protected List<Advisor> findAdvisorsThatCanApply(
 			List<Advisor> candidateAdvisors, Class<?> beanClass, String beanName) {
 
-		ProxyCreationContext.setCurrentProxiedBeanName(beanName);
+		ProxyCreationContext.setCurrentProxiedBeanName(beanName); // 设置当前被代理bean名称
 		try {
-			return AopUtils.findAdvisorsThatCanApply(candidateAdvisors, beanClass);
+			return AopUtils.findAdvisorsThatCanApply(candidateAdvisors, beanClass); /// 查找可以匹配bean的advisors
 		}
 		finally {
 			ProxyCreationContext.setCurrentProxiedBeanName(null);

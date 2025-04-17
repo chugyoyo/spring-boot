@@ -223,7 +223,7 @@ public abstract class AopUtils {
 	 */
 	public static boolean canApply(Pointcut pc, Class<?> targetClass, boolean hasIntroductions) {
 		Assert.notNull(pc, "Pointcut must not be null");
-		if (!pc.getClassFilter().matches(targetClass)) {
+		if (!pc.getClassFilter().matches(targetClass)) { // 类级别匹配（检查目标类是否满足切点表达式）
 			return false;
 		}
 
@@ -249,8 +249,8 @@ public abstract class AopUtils {
 			for (Method method : methods) {
 				if (introductionAwareMethodMatcher != null ?
 						introductionAwareMethodMatcher.matches(method, targetClass, hasIntroductions) :
-						methodMatcher.matches(method, targetClass)) {
-					return true;
+						methodMatcher.matches(method, targetClass)) { // 方法级别匹配（检查类中的方法是否满足切点表达式）
+					return true; // 只要有一个方法匹配，则 Advisor 生效
 				}
 			}
 		}
@@ -286,7 +286,7 @@ public abstract class AopUtils {
 		}
 		else if (advisor instanceof PointcutAdvisor) {
 			PointcutAdvisor pca = (PointcutAdvisor) advisor;
-			return canApply(pca.getPointcut(), targetClass, hasIntroductions);
+			return canApply(pca.getPointcut(), targetClass, hasIntroductions); // 匹配逻辑
 		}
 		else {
 			// It doesn't have a pointcut so we assume it applies.
@@ -313,12 +313,12 @@ public abstract class AopUtils {
 			}
 		}
 		boolean hasIntroductions = !eligibleAdvisors.isEmpty();
-		for (Advisor candidate : candidateAdvisors) {
+		for (Advisor candidate : candidateAdvisors) { // 遍历所有候选 Advisor，检查切点表达式是否匹配当前 Bean
 			if (candidate instanceof IntroductionAdvisor) {
 				// already processed
 				continue;
 			}
-			if (canApply(candidate, clazz, hasIntroductions)) {
+			if (canApply(candidate, clazz, hasIntroductions)) { /// 关键匹配逻辑
 				eligibleAdvisors.add(candidate);
 			}
 		}

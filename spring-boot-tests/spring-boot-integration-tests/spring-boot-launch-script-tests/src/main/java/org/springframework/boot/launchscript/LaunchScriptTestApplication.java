@@ -16,10 +16,13 @@
 
 package org.springframework.boot.launchscript;
 
+import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.launchscript.service.UserService;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 //@EnableAutoConfiguration // 引入 spring 的构建后，不加这个注解找不到 ServletWebServerFactory，自动配置因为某种原因失效 TODO 有待排查
 @SpringBootApplication(scanBasePackageClasses = ScanBasePackagesUtil.class)
@@ -27,7 +30,17 @@ public class LaunchScriptTestApplication {
 
 	public static void main(String[] args) {
 		ConfigurableApplicationContext context = SpringApplication.run(LaunchScriptTestApplication.class, args);
-//		context.close(); // 主动触发关闭 （测试生命周期）
+////		context.close(); // 主动触发关闭 （测试生命周期）
+//		// 获取代理对象（注意类型为接口）
+//		UserService userService = context.getBean(UserService.class);
+//
+//		// 验证代理类型
+//		System.out.println("代理对象类型: " + userService.getClass().getName());
+//		System.out.println("是否为JDK代理: " + AopUtils.isJdkDynamicProxy(userService));
+//		System.out.println("是否为CGLIB代理: " + AopUtils.isCglibProxy(userService));
+//
+//		// 调用方法
+//		userService.createUser("Alice");
 	}
 
 }
