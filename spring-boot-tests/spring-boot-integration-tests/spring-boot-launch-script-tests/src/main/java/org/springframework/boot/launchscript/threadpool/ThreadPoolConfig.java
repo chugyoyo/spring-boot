@@ -1,4 +1,4 @@
-package org.springframework.boot.launchscript.config;
+package org.springframework.boot.launchscript.threadpool;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
